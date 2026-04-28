@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 
 pub mod diff;
+pub mod status;
 
 /// Render git output as a PNG image
 #[derive(Parser)]
@@ -18,6 +19,12 @@ enum Commands {
         #[arg(default_values_t = vec![".".to_string()])]
         paths: Vec<String>,
     },
+    /// Render git status as a PNG image
+    Status {
+        /// Path(s) to check status (file or directory). Defaults to current directory.
+        #[arg(default_values_t = vec![".".to_string()])]
+        paths: Vec<String>,
+    },
 }
 
 pub fn run() {
@@ -25,5 +32,6 @@ pub fn run() {
 
     match cli.command {
         Commands::Diff { paths } => diff::run(&paths),
+        Commands::Status { paths } => status::run(&paths),
     }
 }

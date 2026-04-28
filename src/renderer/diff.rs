@@ -18,8 +18,6 @@ pub(super) fn render_diff(renderer: &Renderer, lines: &[DiffLine]) -> String {
     let mut pixmap = Pixmap::new(img_w, img_h).expect("failed to create pixmap");
     pixmap.fill(Color::from_rgba8(24, 24, 27, 255));
 
-    let ascent = renderer.font_ascent();
-
     for (i, line) in lines.iter().enumerate() {
         let y_top = PADDING + i as f32 * LINE_HEIGHT;
 
@@ -31,7 +29,7 @@ pub(super) fn render_diff(renderer: &Renderer, lines: &[DiffLine]) -> String {
 
         let text = format_line(line);
         let fg = line_color(line, &text);
-        renderer.draw_text(&mut pixmap, &text, PADDING, y_top + ascent, fg);
+        renderer.draw_text(&mut pixmap, &text, PADDING, renderer.centered_baseline(y_top), fg);
     }
 
     Renderer::save_pixmap(&pixmap)

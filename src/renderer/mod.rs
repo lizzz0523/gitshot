@@ -1,4 +1,5 @@
 pub mod diff;
+pub mod status;
 
 use rusttype::{Font, Scale, point};
 use std::fs;
@@ -38,8 +39,16 @@ impl Renderer {
         diff::render_diff(self, lines)
     }
 
-    fn font_ascent(&self) -> f32 {
-        self.font.v_metrics(self.scale).ascent
+    pub fn render_status(&self, entries: &[status::StatusEntry]) -> String {
+        status::render_status(self, entries)
+    }
+
+    /// Compute the baseline y for text vertically centered within a row
+    /// starting at `y_top` with height `LINE_HEIGHT`.
+    fn centered_baseline(&self, y_top: f32) -> f32 {
+        let metrics = self.font.v_metrics(self.scale);
+        let text_height = metrics.ascent - metrics.descent;
+        y_top + (LINE_HEIGHT - text_height) / 2.0 + metrics.ascent
     }
 
     fn measure_text_width(&self, text: &str) -> f32 {
