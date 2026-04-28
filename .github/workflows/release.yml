@@ -11,13 +11,16 @@ env:
 jobs:
   build:
     name: Build ${{ matrix.target }}
-    runs-on: macos-latest
+    runs-on: ${{ matrix.runner }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - target: x86_64-apple-darwin
+            runner: macos-13
             artifact: gitshot-x86_64-apple-darwin
           - target: aarch64-apple-darwin
+            runner: macos-latest
             artifact: gitshot-aarch64-apple-darwin
 
     steps:
