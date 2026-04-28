@@ -115,24 +115,38 @@ fn draw_lines(
     img_w: u32,
     style: &Style,
 ) {
-    let diff = &style.diff_style;
+    let diff_style = &style.diff_style;
 
     for (i, line) in lines.iter().enumerate() {
         let y_top = style.img_padding + i as f32 * style.line_height;
 
         if line.origin == '\0' {
-            renderer.draw_line_bg(pixmap, y_top, img_w, style.line_height, diff.separator_bg);
+            renderer.draw_line_bg(
+                pixmap,
+                y_top,
+                img_w,
+                style.line_height,
+                diff_style.separator_bg,
+            );
             continue;
         }
 
         match line.origin {
-            '+' => renderer.draw_line_bg(pixmap, y_top, img_w, style.line_height, diff.added_bg),
-            '-' => renderer.draw_line_bg(pixmap, y_top, img_w, style.line_height, diff.deleted_bg),
+            '+' => {
+                renderer.draw_line_bg(pixmap, y_top, img_w, style.line_height, diff_style.added_bg)
+            }
+            '-' => renderer.draw_line_bg(
+                pixmap,
+                y_top,
+                img_w,
+                style.line_height,
+                diff_style.deleted_bg,
+            ),
             _ => {}
         }
 
         let text = format_line(line);
-        let fg = line_color(line, &text, diff);
+        let fg = line_color(line, &text, diff_style);
         renderer.draw_text(
             pixmap,
             &text,

@@ -243,7 +243,7 @@ fn draw_sections(
     indicator_w: f32,
     style: &Style,
 ) {
-    let status = &style.status_style;
+    let status_style = &style.status_style;
 
     let mut y = style.img_padding;
     let mut first = true;
@@ -265,13 +265,13 @@ fn draw_sections(
             section.title,
             style.img_padding,
             renderer.centered_baseline(y, style.line_height),
-            status.title_fg,
+            status_style.title_fg,
         );
         y += style.line_height * 2.0; // title + blank
 
         // Entries
         for (kind, path) in &section.entries {
-            if let Some(bg) = kind.bg(status) {
+            if let Some(bg) = kind.bg(status_style) {
                 renderer.draw_line_bg(pixmap, y, img_w, style.line_height, bg);
             }
 
@@ -280,14 +280,14 @@ fn draw_sections(
                 kind.label(),
                 style.img_padding,
                 renderer.centered_baseline(y, style.line_height),
-                kind.fg(status),
+                kind.fg(status_style),
             );
             renderer.draw_text(
                 pixmap,
                 path,
                 style.img_padding + indicator_w,
                 renderer.centered_baseline(y, style.line_height),
-                status.path_fg,
+                status_style.path_fg,
             );
 
             y += style.line_height;
