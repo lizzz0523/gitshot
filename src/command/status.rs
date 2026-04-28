@@ -159,6 +159,28 @@ fn classify_unstaged(status: Status) -> StatusKind {
 }
 
 fn render_status(renderer: &Renderer, entries: &[StatusEntry]) -> String {
+    let sections = build_sections(entries);
+
+    let indicator_w = renderer.measure_text_width("XX  ");
+    let max_path_w = entries
+        .iter()
+        .map(|e| renderer.measure_text_width(&e.path))
+        .fold(0.0f32, f32::max);
+    let max_title_w = sections
+        .iter()
+        .map(|s| renderer.measure_text_width(s.title))
+        .fold(0.0f32, f32::max);
+
+    let (img_w, img_h) = layout_size(&sections, max_title_w, max_path_w + indicator_w);
+    let mut pixmap = Pixmap::new(img_w, img_h).expect("failed to create pixmap");
+    pixmap.fill(Color::from_rgba8(24, 24, 27, 255));
+
+    draw_sections(renderer, &mut pixmap, &sections, img_w, indicator_w);
+
+    Renderer::save_pixmap(&pixmap)
+}
+
+fn build_sections(entries: &[StatusEntry]) -> [StatusSection; 2] {
     let mut staged = Vec::new();
     let mut unstaged = Vec::new();
 
@@ -171,7 +193,7 @@ fn render_status(renderer: &Renderer, entries: &[StatusEntry]) -> String {
         }
     }
 
-    let sections = [
+    [
         StatusSection {
             title: "Staged changes",
             entries: staged,
@@ -180,29 +202,17 @@ fn render_status(renderer: &Renderer, entries: &[StatusEntry]) -> String {
             title: "Unstaged changes",
             entries: unstaged,
         },
-    ];
+    ]
+}
 
-    let indicator_w = renderer.measure_text_width("XX  ");
+fn layout_size(sections: &[StatusSection; 2], max_title_w: f32, max_entry_w: f32) -> (u32, u32) {
+    let max_line_w = max_title_w.max(max_entry_w);
+    let img_w = ((max_line_w + PADDING * 2.0).ceil() as u32).clamp(400, MAX_IMG_WIDTH);
 
-    let max_path_w = entries
-        .iter()
-        .map(|e| renderer.measure_text_width(&e.path))
-        .fold(0.0f32, f32::max);
-
-    let max_title_w = sections
-        .iter()
-        .map(|s| renderer.measure_text_width(s.title))
-        .fold(0.0f32, f32::max);
-
-    let max_line_w = max_title_w.max(max_path_w + indicator_w);
-
-    let img_w =
-        ((max_line_w + PADDING * 2.0).ceil() as u32).clamp(400, MAX_IMG_WIDTH);
-
-    let mut row_count = 0;
-    for section in &sections {
+    let mut row_count = 0usize;
+    for section in sections {
         if !section.entries.is_empty() {
-            row_count += 2 + section.entries.len(); // title + blank + entries
+            row_count += 2 + section.entries.len();
         }
     }
     let has_staged = !sections[0].entries.is_empty();
@@ -211,17 +221,24 @@ fn render_status(renderer: &Renderer, entries: &[StatusEntry]) -> String {
         row_count += 1;
     }
 
-    let content_h = row_count as f32 * LINE_HEIGHT;
-    let img_h = (content_h + PADDING * 2.0).ceil() as u32;
+    let img_h = (row_count as f32 * LINE_HEIGHT + PADDING * 2.0).ceil() as u32;
+    (img_w, img_h)
+}
 
-    let mut pixmap = Pixmap::new(img_w, img_h).expect("failed to create pixmap");
-    pixmap.fill(Color::from_rgba8(24, 24, 27, 255));
+fn draw_sections(
+    renderer: &Renderer,
+    pixmap: &mut Pixmap,
+    sections: &[StatusSection; 2],
+    img_w: u32,
+    indicator_w: f32,
+) {
+    const TITLE_FG: (u8, u8, u8) = (88, 166, 255);
+    const PATH_FG: (u8, u8, u8) = (201, 209, 217);
 
-    let title_fg: (u8, u8, u8) = (88, 166, 255);
     let mut y = PADDING;
-
     let mut first = true;
-    for section in &sections {
+
+    for section in sections {
         if section.entries.is_empty() {
             continue;
         }
@@ -232,35 +249,20 @@ fn render_status(renderer: &Renderer, entries: &[StatusEntry]) -> String {
             y += LINE_HEIGHT;
         }
 
-        renderer.draw_text(&mut pixmap, section.title, PADDING, renderer.centered_baseline(y), title_fg);
-        y += LINE_HEIGHT;
+        // Title
+        renderer.draw_text(pixmap, section.title, PADDING, renderer.centered_baseline(y), TITLE_FG);
+        y += LINE_HEIGHT * 2.0; // title + blank
 
-        y += LINE_HEIGHT;
-
+        // Entries
         for (kind, path) in &section.entries {
             if let Some(bg) = kind.bg_color() {
-                renderer.draw_line_bg(&mut pixmap, y, img_w, bg);
+                renderer.draw_line_bg(pixmap, y, img_w, bg);
             }
 
-            renderer.draw_text(
-                &mut pixmap,
-                kind.label(),
-                PADDING,
-                renderer.centered_baseline(y),
-                kind.color(),
-            );
-
-            renderer.draw_text(
-                &mut pixmap,
-                path,
-                PADDING + indicator_w,
-                renderer.centered_baseline(y),
-                (201, 209, 217),
-            );
+            renderer.draw_text(pixmap, kind.label(), PADDING, renderer.centered_baseline(y), kind.color());
+            renderer.draw_text(pixmap, path, PADDING + indicator_w, renderer.centered_baseline(y), PATH_FG);
 
             y += LINE_HEIGHT;
         }
     }
-
-    Renderer::save_pixmap(&pixmap)
 }
