@@ -1,16 +1,18 @@
-use git2::{DiffFormat, DiffOptions, Repository};
 use std::path::PathBuf;
 use std::process;
 
-use crate::renderer::{LINE_HEIGHT, MAX_IMG_WIDTH, PADDING, Renderer};
-use tiny_skia::{Color, Pixmap};
+use git2::{DiffFormat, DiffOptions, Repository};
+use tiny_skia::Pixmap;
+
+use crate::config::Config;
+use crate::renderer::Renderer;
 
 struct DiffLine {
     origin: char,
     content: String,
 }
 
-pub fn run(paths: &[String], whitespace: bool) {
+pub fn run(config: &Config, paths: &[String], whitespace: bool) {
     let target: PathBuf = if paths.len() == 1 && paths[0] == "." {
         std::env::current_dir().unwrap_or_else(|e| {
             eprintln!("error: cannot get current directory: {e}");
@@ -77,54 +79,68 @@ pub fn run(paths: &[String], whitespace: bool) {
         process::exit(0);
     }
 
-    let renderer = Renderer::new();
-    let path = render_diff(&renderer, &lines);
+    let renderer = Renderer::new(config);
+    let path = render_diff(&renderer, &lines, config);
     println!("{path}");
 }
 
-fn render_diff(renderer: &Renderer, lines: &[DiffLine]) -> String {
-    let (img_w, img_h) = layout_size(renderer, lines);
-    let mut pixmap = Pixmap::new(img_w, img_h).expect("failed to create pixmap");
-    pixmap.fill(Color::from_rgba8(24, 24, 27, 255));
+fn render_diff(renderer: &Renderer, lines: &[DiffLine], config: &Config) -> String {
+    let style = &config.style;
+    let (img_w, img_h) = layout_size(renderer, lines, style);
 
-    draw_lines(renderer, &mut pixmap, lines, img_w);
+    let mut pixmap = Pixmap::new(img_w, img_h).expect("failed to create pixmap");
+    pixmap.fill(style.canvas_bg);
+
+    draw_lines(renderer, &mut pixmap, lines, img_w, style);
 
     Renderer::save_pixmap(&pixmap)
 }
 
-fn layout_size(renderer: &Renderer, lines: &[DiffLine]) -> (u32, u32) {
+fn layout_size(
+    renderer: &Renderer,
+    lines: &[DiffLine],
+    style: &crate::config::Style,
+) -> (u32, u32) {
     let max_line_w = lines
         .iter()
         .map(|l| renderer.measure_text_width(&format_line(l)))
         .fold(0.0f32, f32::max);
 
-    let img_w = ((max_line_w + PADDING * 2.0).ceil() as u32).clamp(400, MAX_IMG_WIDTH);
-    let img_h = (lines.len() as f32 * LINE_HEIGHT + PADDING * 2.0).ceil() as u32;
+    let img_w = ((max_line_w + style.padding * 2.0).ceil() as u32).clamp(400, style.max_img_width);
+    let img_h = (lines.len() as f32 * style.line_height + style.padding * 2.0).ceil() as u32;
     (img_w, img_h)
 }
 
-fn draw_lines(renderer: &Renderer, pixmap: &mut Pixmap, lines: &[DiffLine], img_w: u32) {
+fn draw_lines(
+    renderer: &Renderer,
+    pixmap: &mut Pixmap,
+    lines: &[DiffLine],
+    img_w: u32,
+    style: &crate::config::Style,
+) {
+    let diff = &style.diff;
+
     for (i, line) in lines.iter().enumerate() {
-        let y_top = PADDING + i as f32 * LINE_HEIGHT;
+        let y_top = style.padding + i as f32 * style.line_height;
 
         if line.origin == '\0' {
-            renderer.draw_line_bg(pixmap, y_top, img_w, Color::from_rgba8(48, 54, 61, 255));
+            renderer.draw_line_bg(pixmap, y_top, img_w, style.line_height, diff.separator_bg);
             continue;
         }
 
         match line.origin {
-            '+' => renderer.draw_line_bg(pixmap, y_top, img_w, Color::from_rgba8(46, 160, 67, 30)),
-            '-' => renderer.draw_line_bg(pixmap, y_top, img_w, Color::from_rgba8(248, 81, 73, 30)),
+            '+' => renderer.draw_line_bg(pixmap, y_top, img_w, style.line_height, diff.added_bg),
+            '-' => renderer.draw_line_bg(pixmap, y_top, img_w, style.line_height, diff.deleted_bg),
             _ => {}
         }
 
         let text = format_line(line);
-        let fg = line_color(line, &text);
+        let fg = line_color(line, &text, diff);
         renderer.draw_text(
             pixmap,
             &text,
-            PADDING,
-            renderer.centered_baseline(y_top),
+            style.padding,
+            renderer.centered_baseline(y_top, style.line_height),
             fg,
         );
     }
@@ -138,12 +154,12 @@ fn format_line(line: &DiffLine) -> String {
     }
 }
 
-fn line_color(line: &DiffLine, text: &str) -> (u8, u8, u8) {
+fn line_color(line: &DiffLine, text: &str, diff: &crate::config::DiffStyle) -> (u8, u8, u8) {
     match line.origin {
-        '+' => (63, 185, 80),
-        '-' => (248, 81, 73),
-        'H' => (187, 128, 230),
-        'F' if text.starts_with("diff --git") => (88, 166, 255),
-        _ => (201, 209, 217),
+        '+' => diff.added_fg,
+        '-' => diff.deleted_fg,
+        'H' => diff.hunk_fg,
+        'F' if text.starts_with("diff --git") => diff.file_fg,
+        _ => diff.default_fg,
     }
 }

@@ -1,14 +1,11 @@
-use rusttype::{Font, Scale, point};
 use std::fs;
 use std::process;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+use rusttype::{Font, Scale, point};
 use tiny_skia::{Color, FillRule, Paint, PathBuilder, Pixmap, Rect, Transform};
 
-const FONT_PATH: &str = "/System/Library/Fonts/Monaco.ttf";
-const FONT_SIZE: f32 = 13.0;
-pub const LINE_HEIGHT: f32 = 20.0;
-pub const PADDING: f32 = 16.0;
-pub const MAX_IMG_WIDTH: u32 = 1800;
+use crate::config::Config;
 
 pub struct Renderer {
     font: Font<'static>,
@@ -16,8 +13,8 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn new() -> Self {
-        let font_data = fs::read(FONT_PATH).unwrap_or_else(|e| {
+    pub fn new(config: &Config) -> Self {
+        let font_data = fs::read(&config.style.font_path).unwrap_or_else(|e| {
             eprintln!("error: failed to load font: {e}");
             process::exit(1);
         });
@@ -26,18 +23,18 @@ impl Renderer {
             process::exit(1);
         });
         let scale = Scale {
-            x: FONT_SIZE,
-            y: FONT_SIZE,
+            x: config.style.font_size,
+            y: config.style.font_size,
         };
         Self { font, scale }
     }
 
     /// Compute the baseline y for text vertically centered within a row
-    /// starting at `y_top` with height `LINE_HEIGHT`.
-    pub fn centered_baseline(&self, y_top: f32) -> f32 {
+    /// starting at `y_top` with height `line_height`.
+    pub fn centered_baseline(&self, y_top: f32, line_height: f32) -> f32 {
         let metrics = self.font.v_metrics(self.scale);
         let text_height = metrics.ascent - metrics.descent;
-        y_top + (LINE_HEIGHT - text_height) / 2.0 + metrics.ascent
+        y_top + (line_height - text_height) / 2.0 + metrics.ascent
     }
 
     pub fn measure_text_width(&self, text: &str) -> f32 {
@@ -49,8 +46,15 @@ impl Renderer {
         width
     }
 
-    pub fn draw_line_bg(&self, pixmap: &mut Pixmap, y: f32, width: u32, color: Color) {
-        let rect = Rect::from_xywh(0.0, y, width as f32, LINE_HEIGHT).expect("invalid rect");
+    pub fn draw_line_bg(
+        &self,
+        pixmap: &mut Pixmap,
+        y: f32,
+        width: u32,
+        line_height: f32,
+        color: Color,
+    ) {
+        let rect = Rect::from_xywh(0.0, y, width as f32, line_height).expect("invalid rect");
         let path = PathBuilder::from_rect(rect);
         let mut paint = Paint::default();
         paint.set_color(color);

@@ -1,9 +1,11 @@
-use git2::{Repository, Status, StatusOptions};
 use std::path::PathBuf;
 use std::process;
 
-use crate::renderer::{LINE_HEIGHT, MAX_IMG_WIDTH, PADDING, Renderer};
+use git2::{Repository, Status, StatusOptions};
 use tiny_skia::{Color, Pixmap};
+
+use crate::config::{Config, StatusStyle};
+use crate::renderer::Renderer;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum StatusKind {
@@ -29,23 +31,24 @@ impl StatusKind {
         }
     }
 
-    fn color(self) -> (u8, u8, u8) {
+    fn fg(self, style: &StatusStyle) -> (u8, u8, u8) {
         match self {
-            Self::None => (201, 209, 217),
-            Self::Added => (63, 185, 80),
-            Self::Modified => (210, 153, 34),
-            Self::Deleted => (248, 81, 73),
-            Self::Renamed => (88, 166, 255),
-            Self::TypeChange => (187, 128, 230),
-            Self::Conflict => (248, 81, 73),
+            Self::None => style.path_fg,
+            Self::Added => style.added_fg,
+            Self::Modified => style.modified_fg,
+            Self::Deleted => style.deleted_fg,
+            Self::Renamed => style.renamed_fg,
+            Self::TypeChange => style.typechange_fg,
+            Self::Conflict => style.conflict_fg,
         }
     }
 
-    fn bg_color(self) -> Option<Color> {
+    fn bg(self, style: &StatusStyle) -> Option<Color> {
         match self {
-            Self::Added => Some(Color::from_rgba8(46, 160, 67, 25)),
-            Self::Modified => Some(Color::from_rgba8(210, 153, 34, 25)),
-            Self::Deleted | Self::Conflict => Some(Color::from_rgba8(248, 81, 73, 25)),
+            Self::Added => Some(style.added_bg),
+            Self::Modified => Some(style.modified_bg),
+            Self::Deleted => Some(style.deleted_bg),
+            Self::Conflict => Some(style.conflict_bg),
             _ => None,
         }
     }
@@ -62,7 +65,7 @@ struct StatusSection {
     entries: Vec<(StatusKind, String)>,
 }
 
-pub fn run(paths: &[String]) {
+pub fn run(config: &Config, paths: &[String]) {
     let target: PathBuf = if paths.len() == 1 && paths[0] == "." {
         std::env::current_dir().unwrap_or_else(|e| {
             eprintln!("error: cannot get current directory: {e}");
@@ -119,8 +122,8 @@ pub fn run(paths: &[String]) {
         process::exit(0);
     }
 
-    let renderer = Renderer::new();
-    let path = render_status(&renderer, &entries);
+    let renderer = Renderer::new(config);
+    let path = render_status(&renderer, &entries, config);
     println!("{path}");
 }
 
@@ -158,14 +161,15 @@ fn classify_unstaged(status: Status) -> StatusKind {
     }
 }
 
-fn render_status(renderer: &Renderer, entries: &[StatusEntry]) -> String {
+fn render_status(renderer: &Renderer, entries: &[StatusEntry], config: &Config) -> String {
+    let style = &config.style;
     let sections = build_sections(entries);
 
-    let (img_w, img_h, indicator_w) = layout_size(renderer, &sections, entries);
+    let (img_w, img_h, indicator_w) = layout_size(renderer, &sections, entries, style);
     let mut pixmap = Pixmap::new(img_w, img_h).expect("failed to create pixmap");
-    pixmap.fill(Color::from_rgba8(24, 24, 27, 255));
+    pixmap.fill(style.canvas_bg);
 
-    draw_sections(renderer, &mut pixmap, &sections, img_w, indicator_w);
+    draw_sections(renderer, &mut pixmap, &sections, img_w, indicator_w, style);
 
     Renderer::save_pixmap(&pixmap)
 }
@@ -199,6 +203,7 @@ fn layout_size(
     renderer: &Renderer,
     sections: &[StatusSection; 2],
     entries: &[StatusEntry],
+    style: &crate::config::Style,
 ) -> (u32, u32, f32) {
     let indicator_w = renderer.measure_text_width("XX  ");
     let max_path_w = entries
@@ -211,7 +216,7 @@ fn layout_size(
         .fold(0.0f32, f32::max);
 
     let max_line_w = max_title_w.max(max_path_w + indicator_w);
-    let img_w = ((max_line_w + PADDING * 2.0).ceil() as u32).clamp(400, MAX_IMG_WIDTH);
+    let img_w = ((max_line_w + style.padding * 2.0).ceil() as u32).clamp(400, style.max_img_width);
 
     let mut row_count = 0usize;
     for section in sections {
@@ -225,7 +230,7 @@ fn layout_size(
         row_count += 1;
     }
 
-    let img_h = (row_count as f32 * LINE_HEIGHT + PADDING * 2.0).ceil() as u32;
+    let img_h = (row_count as f32 * style.line_height + style.padding * 2.0).ceil() as u32;
     (img_w, img_h, indicator_w)
 }
 
@@ -235,11 +240,11 @@ fn draw_sections(
     sections: &[StatusSection; 2],
     img_w: u32,
     indicator_w: f32,
+    style: &crate::config::Style,
 ) {
-    const TITLE_FG: (u8, u8, u8) = (88, 166, 255);
-    const PATH_FG: (u8, u8, u8) = (201, 209, 217);
+    let status = &style.status;
 
-    let mut y = PADDING;
+    let mut y = style.padding;
     let mut first = true;
 
     for section in sections {
@@ -250,41 +255,41 @@ fn draw_sections(
         if first {
             first = false;
         } else {
-            y += LINE_HEIGHT;
+            y += style.line_height;
         }
 
         // Title
         renderer.draw_text(
             pixmap,
             section.title,
-            PADDING,
-            renderer.centered_baseline(y),
-            TITLE_FG,
+            style.padding,
+            renderer.centered_baseline(y, style.line_height),
+            status.title_fg,
         );
-        y += LINE_HEIGHT * 2.0; // title + blank
+        y += style.line_height * 2.0; // title + blank
 
         // Entries
         for (kind, path) in &section.entries {
-            if let Some(bg) = kind.bg_color() {
-                renderer.draw_line_bg(pixmap, y, img_w, bg);
+            if let Some(bg) = kind.bg(status) {
+                renderer.draw_line_bg(pixmap, y, img_w, style.line_height, bg);
             }
 
             renderer.draw_text(
                 pixmap,
                 kind.label(),
-                PADDING,
-                renderer.centered_baseline(y),
-                kind.color(),
+                style.padding,
+                renderer.centered_baseline(y, style.line_height),
+                kind.fg(status),
             );
             renderer.draw_text(
                 pixmap,
                 path,
-                PADDING + indicator_w,
-                renderer.centered_baseline(y),
-                PATH_FG,
+                style.padding + indicator_w,
+                renderer.centered_baseline(y, style.line_height),
+                status.path_fg,
             );
 
-            y += LINE_HEIGHT;
+            y += style.line_height;
         }
     }
 }
