@@ -56,6 +56,15 @@ pub fn run(paths: &[String], whitespace: bool) {
     diff.print(DiffFormat::Patch, |_delta, _hunk, line| {
         let origin = line.origin();
         let content = String::from_utf8_lossy(line.content()).into_owned();
+
+        // Insert a blank line between files
+        if origin == 'F' && content.starts_with("diff --git") && !lines.is_empty() {
+            lines.push(DiffLine {
+                origin: '\0',
+                content: String::new(),
+            });
+        }
+
         lines.push(DiffLine { origin, content });
         true
     })
@@ -97,6 +106,11 @@ fn layout_size(renderer: &Renderer, lines: &[DiffLine]) -> (u32, u32) {
 fn draw_lines(renderer: &Renderer, pixmap: &mut Pixmap, lines: &[DiffLine], img_w: u32) {
     for (i, line) in lines.iter().enumerate() {
         let y_top = PADDING + i as f32 * LINE_HEIGHT;
+
+        if line.origin == '\0' {
+            renderer.draw_line_bg(pixmap, y_top, img_w, Color::from_rgba8(48, 54, 61, 255));
+            continue;
+        }
 
         match line.origin {
             '+' => renderer.draw_line_bg(pixmap, y_top, img_w, Color::from_rgba8(46, 160, 67, 30)),
