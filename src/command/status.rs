@@ -216,7 +216,7 @@ fn layout_size(
         .fold(0.0f32, f32::max);
 
     let max_line_w = max_title_w.max(max_path_w + indicator_w);
-    let img_w = ((max_line_w + style.padding * 2.0).ceil() as u32).clamp(400, style.max_img_width);
+    let img_w = ((max_line_w + style.img_padding * 2.0).ceil() as u32).clamp(400, style.max_img_width);
 
     let mut row_count = 0usize;
     for section in sections {
@@ -230,7 +230,7 @@ fn layout_size(
         row_count += 1;
     }
 
-    let img_h = (row_count as f32 * style.line_height + style.padding * 2.0).ceil() as u32;
+    let img_h = (row_count as f32 * style.line_height + style.img_padding * 2.0).ceil() as u32;
     (img_w, img_h, indicator_w)
 }
 
@@ -244,7 +244,7 @@ fn draw_sections(
 ) {
     let status = &style.status_style;
 
-    let mut y = style.padding;
+    let mut y = style.img_padding;
     let mut first = true;
 
     for section in sections {
@@ -262,7 +262,7 @@ fn draw_sections(
         renderer.draw_text(
             pixmap,
             section.title,
-            style.padding,
+            style.img_padding,
             renderer.centered_baseline(y, style.line_height),
             status.title_fg,
         );
@@ -277,14 +277,14 @@ fn draw_sections(
             renderer.draw_text(
                 pixmap,
                 kind.label(),
-                style.padding,
+                style.img_padding,
                 renderer.centered_baseline(y, style.line_height),
                 kind.fg(status),
             );
             renderer.draw_text(
                 pixmap,
                 path,
-                style.padding + indicator_w,
+                style.img_padding + indicator_w,
                 renderer.centered_baseline(y, style.line_height),
                 status.path_fg,
             );

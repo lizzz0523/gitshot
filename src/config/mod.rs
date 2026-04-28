@@ -20,7 +20,7 @@ const fn default_line_height() -> f32 {
     20.0
 }
 
-const fn default_padding() -> f32 {
+const fn default_img_padding() -> f32 {
     16.0
 }
 
@@ -38,8 +38,8 @@ pub(crate) struct ConfigFile {
     pub font_size: f32,
     #[serde(default = "default_line_height")]
     pub line_height: f32,
-    #[serde(default = "default_padding")]
-    pub padding: f32,
+    #[serde(default = "default_img_padding")]
+    pub img_padding: f32,
     #[serde(default = "default_max_img_width")]
     pub max_img_width: u32,
 }
@@ -51,7 +51,7 @@ impl Default for ConfigFile {
             font_path: default_font_path(),
             font_size: default_font_size(),
             line_height: default_line_height(),
-            padding: default_padding(),
+            img_padding: default_img_padding(),
             max_img_width: default_max_img_width(),
         }
     }
