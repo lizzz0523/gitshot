@@ -9,7 +9,7 @@ use tiny_skia::{Color, FillRule, Paint, PathBuilder, Pixmap, Rect, Transform};
 
 /// Render git diff as a PNG image
 #[derive(Parser)]
-#[command(name = "diffshot", version, about)]
+#[command(name = "gitshot", version, about)]
 struct Cli {
     /// Path(s) to diff (file or directory). Defaults to current directory.
     #[arg(default_values_t = vec![".".to_string()])]
@@ -131,7 +131,7 @@ fn main() {
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_millis();
-    let path = format!("/tmp/diffshot_{ts}.png");
+    let path = format!("/tmp/gitshot_{ts}.png");
 
     let png_data = pixmap.encode_png().unwrap_or_else(|e| {
         eprintln!("error: failed to encode PNG: {e}");
