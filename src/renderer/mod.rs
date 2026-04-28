@@ -1,6 +1,3 @@
-pub mod diff;
-pub mod status;
-
 use rusttype::{Font, Scale, point};
 use std::fs;
 use std::process;
@@ -9,9 +6,9 @@ use tiny_skia::{Color, FillRule, Paint, PathBuilder, Pixmap, Rect, Transform};
 
 const FONT_PATH: &str = "/System/Library/Fonts/Monaco.ttf";
 const FONT_SIZE: f32 = 13.0;
-const LINE_HEIGHT: f32 = 20.0;
-const PADDING: f32 = 16.0;
-const MAX_IMG_WIDTH: u32 = 1800;
+pub const LINE_HEIGHT: f32 = 20.0;
+pub const PADDING: f32 = 16.0;
+pub const MAX_IMG_WIDTH: u32 = 1800;
 
 pub struct Renderer {
     font: Font<'static>,
@@ -35,23 +32,15 @@ impl Renderer {
         Self { font, scale }
     }
 
-    pub fn render_diff(&self, lines: &[diff::DiffLine]) -> String {
-        diff::render_diff(self, lines)
-    }
-
-    pub fn render_status(&self, entries: &[status::StatusEntry]) -> String {
-        status::render_status(self, entries)
-    }
-
     /// Compute the baseline y for text vertically centered within a row
     /// starting at `y_top` with height `LINE_HEIGHT`.
-    fn centered_baseline(&self, y_top: f32) -> f32 {
+    pub fn centered_baseline(&self, y_top: f32) -> f32 {
         let metrics = self.font.v_metrics(self.scale);
         let text_height = metrics.ascent - metrics.descent;
         y_top + (LINE_HEIGHT - text_height) / 2.0 + metrics.ascent
     }
 
-    fn measure_text_width(&self, text: &str) -> f32 {
+    pub fn measure_text_width(&self, text: &str) -> f32 {
         let mut width = 0.0;
         for c in text.chars() {
             let glyph = self.font.glyph(c).scaled(self.scale);
@@ -60,7 +49,7 @@ impl Renderer {
         width
     }
 
-    fn draw_line_bg(&self, pixmap: &mut Pixmap, y: f32, width: u32, color: Color) {
+    pub fn draw_line_bg(&self, pixmap: &mut Pixmap, y: f32, width: u32, color: Color) {
         let rect = Rect::from_xywh(0.0, y, width as f32, LINE_HEIGHT).expect("invalid rect");
         let path = PathBuilder::from_rect(rect);
         let mut paint = Paint::default();
@@ -74,7 +63,7 @@ impl Renderer {
         );
     }
 
-    fn draw_text(&self, pixmap: &mut Pixmap, text: &str, x: f32, y: f32, color: (u8, u8, u8)) {
+    pub fn draw_text(&self, pixmap: &mut Pixmap, text: &str, x: f32, y: f32, color: (u8, u8, u8)) {
         for glyph in self.font.layout(text, self.scale, point(x, y)) {
             if let Some(bb) = glyph.pixel_bounding_box() {
                 glyph.draw(|gx, gy, v| {
@@ -99,7 +88,7 @@ impl Renderer {
         }
     }
 
-    fn save_pixmap(pixmap: &Pixmap) -> String {
+    pub fn save_pixmap(pixmap: &Pixmap) -> String {
         let ts = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
