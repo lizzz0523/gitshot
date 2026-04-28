@@ -1,0 +1,29 @@
+use clap::{Parser, Subcommand};
+
+pub mod diff;
+
+/// Render git output as a PNG image
+#[derive(Parser)]
+#[command(name = "gitshot", version, about)]
+pub struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Render git diff as a PNG image
+    Diff {
+        /// Path(s) to diff (file or directory). Defaults to current directory.
+        #[arg(default_values_t = vec![".".to_string()])]
+        paths: Vec<String>,
+    },
+}
+
+pub fn run() {
+    let cli = Cli::parse();
+
+    match cli.command {
+        Commands::Diff { paths } => diff::run(&paths),
+    }
+}
