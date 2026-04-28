@@ -7,6 +7,7 @@ edition = "2024"
 clap = { version = "4", features = ["derive"] }
 dirs = "6"
 git2 = "0.20"
+libgit2-sys = { version = "0.18", features = ["vendored"] }
 rusttype = "0.9"
 serde = { version = "1", features = ["derive"] }
 tiny-skia = "0.11"

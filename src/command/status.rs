@@ -216,7 +216,8 @@ fn layout_size(
         .fold(0.0f32, f32::max);
 
     let max_line_w = max_title_w.max(max_path_w + indicator_w);
-    let img_w = ((max_line_w + style.img_padding * 2.0).ceil() as u32).clamp(400, style.max_img_width);
+    let img_w =
+        ((max_line_w + style.img_padding * 2.0).ceil() as u32).clamp(400, style.max_img_width);
 
     let mut row_count = 0usize;
     for section in sections {

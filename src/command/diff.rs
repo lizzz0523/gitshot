@@ -102,7 +102,8 @@ fn layout_size(renderer: &Renderer, lines: &[DiffLine], style: &Style) -> (u32, 
         .map(|l| renderer.measure_text_width(&format_line(l)))
         .fold(0.0f32, f32::max);
 
-    let img_w = ((max_line_w + style.img_padding * 2.0).ceil() as u32).clamp(400, style.max_img_width);
+    let img_w =
+        ((max_line_w + style.img_padding * 2.0).ceil() as u32).clamp(400, style.max_img_width);
     let img_h = (lines.len() as f32 * style.line_height + style.img_padding * 2.0).ceil() as u32;
     (img_w, img_h)
 }

@@ -284,6 +284,7 @@ dependencies = [
  "clap",
  "dirs",
  "git2",
+ "libgit2-sys",
  "rusttype",
  "serde",
  "tiny-skia",
