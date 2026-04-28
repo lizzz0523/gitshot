@@ -4,6 +4,40 @@ use tiny_skia::Color;
 
 use crate::config::StatusStyle;
 
+pub struct StatusEntry {
+    pub path: String,
+    pub staged: StatusKind,
+    pub unstaged: StatusKind,
+}
+
+impl StatusEntry {
+    pub fn from_repo(repo: &Repository, pathspecs: &[String]) -> Result<Vec<Self>> {
+        let mut opts = StatusOptions::new();
+        opts.include_untracked(true).recurse_untracked_dirs(true);
+        for ps in pathspecs {
+            opts.pathspec(ps);
+        }
+
+        let statuses = repo
+            .statuses(Some(&mut opts))
+            .context("failed to get status")?;
+
+        let entries = statuses
+            .iter()
+            .map(|e| {
+                let s = e.status();
+                Self {
+                    path: e.path().unwrap_or("???").to_owned(),
+                    staged: classify(s, STAGED_TABLE),
+                    unstaged: classify(s, UNSTAGED_TABLE),
+                }
+            })
+            .collect();
+
+        Ok(entries)
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum StatusKind {
     None,
@@ -48,40 +82,6 @@ impl StatusKind {
             Self::Conflict => Some(style.conflict_bg),
             _ => None,
         }
-    }
-}
-
-pub struct StatusEntry {
-    pub path: String,
-    pub staged: StatusKind,
-    pub unstaged: StatusKind,
-}
-
-impl StatusEntry {
-    pub fn from_repo(repo: &Repository, pathspecs: &[String]) -> Result<Vec<Self>> {
-        let mut opts = StatusOptions::new();
-        opts.include_untracked(true).recurse_untracked_dirs(true);
-        for ps in pathspecs {
-            opts.pathspec(ps);
-        }
-
-        let statuses = repo
-            .statuses(Some(&mut opts))
-            .context("failed to get status")?;
-
-        let entries = statuses
-            .iter()
-            .map(|e| {
-                let s = e.status();
-                Self {
-                    path: e.path().unwrap_or("???").to_owned(),
-                    staged: classify(s, STAGED_TABLE),
-                    unstaged: classify(s, UNSTAGED_TABLE),
-                }
-            })
-            .collect();
-
-        Ok(entries)
     }
 }
 

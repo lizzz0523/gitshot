@@ -6,10 +6,37 @@ use tiny_skia::Color;
 
 use crate::config::DiffStyle;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum DiffSource {
-    Staged,
-    Unstaged,
+pub struct DiffSection {
+    pub title: &'static str,
+    pub lines: Vec<DiffLine>,
+}
+
+impl DiffSection {
+    pub fn from_repo(
+        repo: &Repository,
+        pathspecs: &[String],
+        whitespace: bool,
+    ) -> Result<Vec<Self>> {
+        let sources = [
+            (DiffSource::Staged, "Staged changes"),
+            (DiffSource::Unstaged, "Unstaged changes"),
+        ];
+
+        let mut sections = Vec::new();
+        for (source, title) in sources {
+            let lines = collect_diff_lines(source, repo, pathspecs, whitespace)?;
+            if !lines.is_empty() {
+                sections.push(Self { title, lines });
+            }
+        }
+        Ok(sections)
+    }
+}
+
+pub struct DiffLine {
+    pub kind: LineKind,
+    pub content: String,
+    pub inline_ranges: Vec<Range<usize>>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -44,37 +71,10 @@ impl LineKind {
     }
 }
 
-pub struct DiffLine {
-    pub kind: LineKind,
-    pub content: String,
-    pub inline_ranges: Vec<Range<usize>>,
-}
-
-pub struct DiffSection {
-    pub title: &'static str,
-    pub lines: Vec<DiffLine>,
-}
-
-impl DiffSection {
-    pub fn from_repo(
-        repo: &Repository,
-        pathspecs: &[String],
-        whitespace: bool,
-    ) -> Result<Vec<Self>> {
-        let sources = [
-            (DiffSource::Staged, "Staged changes"),
-            (DiffSource::Unstaged, "Unstaged changes"),
-        ];
-
-        let mut sections = Vec::new();
-        for (source, title) in sources {
-            let lines = collect_diff_lines(source, repo, pathspecs, whitespace)?;
-            if !lines.is_empty() {
-                sections.push(Self { title, lines });
-            }
-        }
-        Ok(sections)
-    }
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum DiffSource {
+    Staged,
+    Unstaged,
 }
 
 fn collect_diff_lines(
@@ -120,24 +120,24 @@ fn collect_diff_lines(
             .to_owned();
 
         // 非首个文件前插入分隔行，视觉区分多文件 diff
-            if kind == LineKind::FileHeader && !lines.is_empty() {
-                lines.push(DiffLine {
-                    kind: LineKind::Separator,
-                    content: String::new(),
-                    inline_ranges: Vec::new(),
-                });
-            }
+        if kind == LineKind::FileHeader && !lines.is_empty() {
             lines.push(DiffLine {
-                kind,
-                content,
+                kind: LineKind::Separator,
+                content: String::new(),
                 inline_ranges: Vec::new(),
             });
-            true
-        })
-        .context("failed to collect diff")?;
+        }
+        lines.push(DiffLine {
+            kind,
+            content,
+            inline_ranges: Vec::new(),
+        });
+        true
+    })
+    .context("failed to collect diff")?;
 
-        annotate_inline_diffs(&mut lines);
-        Ok(lines)
+    annotate_inline_diffs(&mut lines);
+    Ok(lines)
 }
 
 fn classify_origin(origin: char, content: &[u8]) -> LineKind {

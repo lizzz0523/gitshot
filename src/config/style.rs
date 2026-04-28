@@ -46,8 +46,6 @@ impl ColorScheme {
     }
 }
 
-// ── DiffStyle ───────────────────────────────────────────────────────
-
 pub struct DiffStyle {
     pub section_title_fg: Color,
     pub added_bg: Color,
