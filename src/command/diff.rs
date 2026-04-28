@@ -5,13 +5,11 @@ use git2::{DiffFormat, DiffOptions, Repository};
 use tiny_skia::Pixmap;
 
 use crate::config::{Config, DiffStyle, Style};
-use crate::inline_diff::{InlineRange, annotate_inline_diffs};
 use crate::renderer::Renderer;
 
 struct DiffLine {
     origin: char,
     content: String,
-    inline_ranges: Vec<InlineRange>,
 }
 
 pub fn run(config: &Config, paths: &[String], whitespace: bool) {
@@ -56,17 +54,20 @@ pub fn run(config: &Config, paths: &[String], whitespace: bool) {
             process::exit(1);
         });
 
-    // Collect raw lines first (without inline ranges)
-    let mut raw_lines: Vec<(char, String, Vec<InlineRange>)> = Vec::new();
+    let mut lines = Vec::new();
     diff.print(DiffFormat::Patch, |_delta, _hunk, line| {
         let origin = line.origin();
         let content = String::from_utf8_lossy(line.content()).into_owned();
 
-        if origin == 'F' && content.starts_with("diff --git") && !raw_lines.is_empty() {
-            raw_lines.push(('\0', String::new(), Vec::new()));
+        // Insert a blank line between files
+        if origin == 'F' && content.starts_with("diff --git") && !lines.is_empty() {
+            lines.push(DiffLine {
+                origin: '\0',
+                content: String::new(),
+            });
         }
 
-        raw_lines.push((origin, content, Vec::new()));
+        lines.push(DiffLine { origin, content });
         true
     })
     .unwrap_or_else(|e| {
@@ -74,21 +75,9 @@ pub fn run(config: &Config, paths: &[String], whitespace: bool) {
         process::exit(1);
     });
 
-    if raw_lines.is_empty() {
+    if lines.is_empty() {
         process::exit(0);
     }
-
-    // Compute inline diffs for paired -/+ lines
-    annotate_inline_diffs(&mut raw_lines);
-
-    let lines: Vec<DiffLine> = raw_lines
-        .into_iter()
-        .map(|(origin, content, inline_ranges)| DiffLine {
-            origin,
-            content,
-            inline_ranges,
-        })
-        .collect();
 
     let renderer = Renderer::new(config);
     let path = render_diff(&renderer, &lines, config);
@@ -144,33 +133,15 @@ fn draw_lines(
 
         match line.origin {
             '+' => {
-                renderer.draw_line_bg(pixmap, y_top, img_w, style.line_height, diff_style.added_bg);
-                draw_inline_ranges(
-                    renderer,
-                    pixmap,
-                    y_top,
-                    style,
-                    line,
-                    diff_style.added_inline_bg,
-                );
+                renderer.draw_line_bg(pixmap, y_top, img_w, style.line_height, diff_style.added_bg)
             }
-            '-' => {
-                renderer.draw_line_bg(
-                    pixmap,
-                    y_top,
-                    img_w,
-                    style.line_height,
-                    diff_style.deleted_bg,
-                );
-                draw_inline_ranges(
-                    renderer,
-                    pixmap,
-                    y_top,
-                    style,
-                    line,
-                    diff_style.deleted_inline_bg,
-                );
-            }
+            '-' => renderer.draw_line_bg(
+                pixmap,
+                y_top,
+                img_w,
+                style.line_height,
+                diff_style.deleted_bg,
+            ),
             _ => {}
         }
 
@@ -183,37 +154,6 @@ fn draw_lines(
             renderer.centered_baseline(y_top, style.line_height),
             fg,
         );
-    }
-}
-
-/// Draw darker background rectangles for inline-highlighted character ranges.
-fn draw_inline_ranges(
-    renderer: &Renderer,
-    pixmap: &mut Pixmap,
-    y_top: f32,
-    style: &Style,
-    line: &DiffLine,
-    color: tiny_skia::Color,
-) {
-    if line.inline_ranges.is_empty() {
-        return;
-    }
-
-    let prefix = match line.origin {
-        '+' | '-' => line.origin.to_string(),
-        _ => String::new(),
-    };
-    let content: Vec<char> = line.content.trim_end_matches('\n').chars().collect();
-    let prefix_w = renderer.measure_text_width(&prefix);
-
-    for range in &line.inline_ranges {
-        let before: String = content.iter().take(range.start).collect();
-        let range_str: String = content.iter().skip(range.start).take(range.end - range.start).collect();
-
-        let x_start = style.img_padding + prefix_w + renderer.measure_text_width(&before);
-        let x_end = x_start + renderer.measure_text_width(&range_str);
-
-        renderer.draw_rect_bg(pixmap, x_start, y_top, x_end - x_start, style.line_height, color);
     }
 }
 

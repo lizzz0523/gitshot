@@ -46,8 +46,6 @@ impl Style {
 pub struct DiffStyle {
     pub added_bg: Color,
     pub deleted_bg: Color,
-    pub added_inline_bg: Color,
-    pub deleted_inline_bg: Color,
     pub separator_bg: Color,
     pub added_fg: (u8, u8, u8),
     pub deleted_fg: (u8, u8, u8),
@@ -61,8 +59,6 @@ impl DiffStyle {
         Self {
             added_bg: Color::from_rgba8(46, 160, 67, 30),
             deleted_bg: Color::from_rgba8(248, 81, 73, 30),
-            added_inline_bg: Color::from_rgba8(46, 160, 67, 70),
-            deleted_inline_bg: Color::from_rgba8(248, 81, 73, 70),
             separator_bg: Color::from_rgba8(48, 54, 61, 255),
             added_fg: (63, 185, 80),
             deleted_fg: (248, 81, 73),
@@ -76,8 +72,6 @@ impl DiffStyle {
         Self {
             added_bg: Color::from_rgba8(46, 160, 67, 25),
             deleted_bg: Color::from_rgba8(248, 81, 73, 25),
-            added_inline_bg: Color::from_rgba8(46, 160, 67, 55),
-            deleted_inline_bg: Color::from_rgba8(248, 81, 73, 55),
             separator_bg: Color::from_rgba8(216, 222, 228, 255),
             added_fg: (26, 127, 55),
             deleted_fg: (207, 34, 46),
