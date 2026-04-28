@@ -2,7 +2,7 @@ use git2::{Repository, Status, StatusOptions};
 use std::path::PathBuf;
 use std::process;
 
-use crate::renderer::{Renderer, LINE_HEIGHT, MAX_IMG_WIDTH, PADDING};
+use crate::renderer::{LINE_HEIGHT, MAX_IMG_WIDTH, PADDING, Renderer};
 use tiny_skia::{Color, Pixmap};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -161,17 +161,7 @@ fn classify_unstaged(status: Status) -> StatusKind {
 fn render_status(renderer: &Renderer, entries: &[StatusEntry]) -> String {
     let sections = build_sections(entries);
 
-    let indicator_w = renderer.measure_text_width("XX  ");
-    let max_path_w = entries
-        .iter()
-        .map(|e| renderer.measure_text_width(&e.path))
-        .fold(0.0f32, f32::max);
-    let max_title_w = sections
-        .iter()
-        .map(|s| renderer.measure_text_width(s.title))
-        .fold(0.0f32, f32::max);
-
-    let (img_w, img_h) = layout_size(&sections, max_title_w, max_path_w + indicator_w);
+    let (img_w, img_h, indicator_w) = layout_size(renderer, &sections, entries);
     let mut pixmap = Pixmap::new(img_w, img_h).expect("failed to create pixmap");
     pixmap.fill(Color::from_rgba8(24, 24, 27, 255));
 
@@ -205,8 +195,22 @@ fn build_sections(entries: &[StatusEntry]) -> [StatusSection; 2] {
     ]
 }
 
-fn layout_size(sections: &[StatusSection; 2], max_title_w: f32, max_entry_w: f32) -> (u32, u32) {
-    let max_line_w = max_title_w.max(max_entry_w);
+fn layout_size(
+    renderer: &Renderer,
+    sections: &[StatusSection; 2],
+    entries: &[StatusEntry],
+) -> (u32, u32, f32) {
+    let indicator_w = renderer.measure_text_width("XX  ");
+    let max_path_w = entries
+        .iter()
+        .map(|e| renderer.measure_text_width(&e.path))
+        .fold(0.0f32, f32::max);
+    let max_title_w = sections
+        .iter()
+        .map(|s| renderer.measure_text_width(s.title))
+        .fold(0.0f32, f32::max);
+
+    let max_line_w = max_title_w.max(max_path_w + indicator_w);
     let img_w = ((max_line_w + PADDING * 2.0).ceil() as u32).clamp(400, MAX_IMG_WIDTH);
 
     let mut row_count = 0usize;
@@ -222,7 +226,7 @@ fn layout_size(sections: &[StatusSection; 2], max_title_w: f32, max_entry_w: f32
     }
 
     let img_h = (row_count as f32 * LINE_HEIGHT + PADDING * 2.0).ceil() as u32;
-    (img_w, img_h)
+    (img_w, img_h, indicator_w)
 }
 
 fn draw_sections(
@@ -250,7 +254,13 @@ fn draw_sections(
         }
 
         // Title
-        renderer.draw_text(pixmap, section.title, PADDING, renderer.centered_baseline(y), TITLE_FG);
+        renderer.draw_text(
+            pixmap,
+            section.title,
+            PADDING,
+            renderer.centered_baseline(y),
+            TITLE_FG,
+        );
         y += LINE_HEIGHT * 2.0; // title + blank
 
         // Entries
@@ -259,8 +269,20 @@ fn draw_sections(
                 renderer.draw_line_bg(pixmap, y, img_w, bg);
             }
 
-            renderer.draw_text(pixmap, kind.label(), PADDING, renderer.centered_baseline(y), kind.color());
-            renderer.draw_text(pixmap, path, PADDING + indicator_w, renderer.centered_baseline(y), PATH_FG);
+            renderer.draw_text(
+                pixmap,
+                kind.label(),
+                PADDING,
+                renderer.centered_baseline(y),
+                kind.color(),
+            );
+            renderer.draw_text(
+                pixmap,
+                path,
+                PADDING + indicator_w,
+                renderer.centered_baseline(y),
+                PATH_FG,
+            );
 
             y += LINE_HEIGHT;
         }
