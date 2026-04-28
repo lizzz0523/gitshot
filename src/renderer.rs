@@ -8,37 +8,95 @@ use tiny_skia::{Color, FillRule, Paint, PathBuilder, Pixmap, Rect, Transform};
 use crate::config::Config;
 
 pub struct Renderer {
-    font: Font<'static>,
+    fonts: Vec<Font<'static>>,
     scale: Scale,
 }
 
 impl Renderer {
     pub fn new(cfg: &Config) -> Result<Self> {
-        let path = &cfg.style.font_path;
-        let font_data = fs::read(path).with_context(|| format!("failed to load font: {path}"))?;
-        let font =
-            Font::try_from_vec(font_data).ok_or_else(|| anyhow!("failed to parse font: {path}"))?;
+        let mut fonts = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+
+        for path in &cfg.style.fonts {
+            if !seen.insert(path.as_str()) {
+                continue; // 跳过重复路径
+            }
+            match fs::read(path) {
+                Ok(data) => {
+                    if let Some(font) = Font::try_from_vec_and_index(data, 0) {
+                        fonts.push(font);
+                    } else {
+                        eprintln!("warning: failed to parse font: {path}");
+                    }
+                }
+                Err(e) => {
+                    if fonts.is_empty() {
+                        return Err(anyhow!("failed to load font {path}: {e}"));
+                    }
+                    eprintln!("warning: failed to load font {path}: {e}");
+                }
+            }
+        }
+
+        if fonts.is_empty() {
+            return Err(anyhow!("no fonts loaded"));
+        }
+
         let scale = Scale {
             x: cfg.style.font_size,
             y: cfg.style.font_size,
         };
-        Ok(Self { font, scale })
+        Ok(Self { fonts, scale })
+    }
+
+    /// 按字体分段：将文本切分为连续同字体的子串，返回 (字体索引, 子串) 列表
+    fn text_runs<'a>(&self, text: &'a str) -> Vec<(usize, &'a str)> {
+        if text.is_empty() {
+            return Vec::new();
+        }
+
+        let mut runs = Vec::new();
+        let mut start = 0;
+        let mut current_font_idx = self.font_index_for_char(text.chars().next().unwrap());
+
+        for (i, c) in text.char_indices().skip(1) {
+            let fi = self.font_index_for_char(c);
+            if fi != current_font_idx {
+                runs.push((current_font_idx, &text[start..i]));
+                start = i;
+                current_font_idx = fi;
+            }
+        }
+        runs.push((current_font_idx, &text[start..]));
+        runs
+    }
+
+    fn font_index_for_char(&self, c: char) -> usize {
+        self.fonts
+            .iter()
+            .position(|f| has_glyph(f, c))
+            .unwrap_or(0)
     }
 
     pub fn centered_baseline(&self, y_top: f32, line_height: f32) -> f32 {
-        let metrics = self.font.v_metrics(self.scale);
+        let metrics = self.fonts[0].v_metrics(self.scale);
         let text_height = metrics.ascent - metrics.descent;
         y_top + (line_height - text_height) / 2.0 + metrics.ascent
     }
 
     pub fn measure_text_width(&self, text: &str) -> f32 {
-        text.chars()
-            .map(|c| {
-                self.font
-                    .glyph(c)
-                    .scaled(self.scale)
-                    .h_metrics()
-                    .advance_width
+        self.text_runs(text)
+            .iter()
+            .map(|(fi, run)| {
+                let font = &self.fonts[*fi];
+                run.chars()
+                    .map(|c| {
+                        font.glyph(c)
+                            .scaled(self.scale)
+                            .h_metrics()
+                            .advance_width
+                    })
+                    .sum::<f32>()
             })
             .sum()
     }
@@ -67,26 +125,33 @@ impl Renderer {
         let fg_b = color.blue() * 255.0;
         let color_alpha = color.alpha();
 
-        for glyph in self.font.layout(text, self.scale, point(x, y)) {
-            if let Some(bb) = glyph.pixel_bounding_box() {
-                glyph.draw(|gx, gy, v| {
-                    let px = bb.min.x + gx as i32;
-                    let py = bb.min.y + gy as i32;
-                    if let (Ok(px_u), Ok(py_u)) = (u32::try_from(px), u32::try_from(py))
-                        && px_u < pixmap.width()
-                        && py_u < pixmap.height()
-                    {
-                        let idx = ((py_u * pixmap.width() + px_u) * 4) as usize;
-                        let data = pixmap.data_mut();
-                        let bg_r = f32::from(data[idx]);
-                        let bg_g = f32::from(data[idx + 1]);
-                        let bg_b = f32::from(data[idx + 2]);
+        let mut cursor_x = x;
+        for (fi, run) in self.text_runs(text) {
+            let font = &self.fonts[fi];
+            for glyph in font.layout(run, self.scale, point(cursor_x, y)) {
+                if let Some(bb) = glyph.pixel_bounding_box() {
+                    glyph.draw(|gx, gy, v| {
+                        let px = bb.min.x + gx as i32;
+                        let py = bb.min.y + gy as i32;
+                        if let (Ok(px_u), Ok(py_u)) = (u32::try_from(px), u32::try_from(py))
+                            && px_u < pixmap.width()
+                            && py_u < pixmap.height()
+                        {
+                            let idx = ((py_u * pixmap.width() + px_u) * 4) as usize;
+                            let data = pixmap.data_mut();
+                            let bg_r = f32::from(data[idx]);
+                            let bg_g = f32::from(data[idx + 1]);
+                            let bg_b = f32::from(data[idx + 2]);
 
-                        let alpha = color_alpha * v;
-                        data[idx] = blend_channel(bg_r, fg_r, alpha);
-                        data[idx + 1] = blend_channel(bg_g, fg_g, alpha);
-                        data[idx + 2] = blend_channel(bg_b, fg_b, alpha);
-                    }
+                            let alpha = color_alpha * v;
+                            data[idx] = blend_channel(bg_r, fg_r, alpha);
+                            data[idx + 1] = blend_channel(bg_g, fg_g, alpha);
+                            data[idx + 2] = blend_channel(bg_b, fg_b, alpha);
+                        }
+                    });
+                }
+                cursor_x = glyph.pixel_bounding_box().map_or(cursor_x, |bb| {
+                    bb.max.x as f32
                 });
             }
         }
@@ -104,6 +169,11 @@ impl Renderer {
 
         Ok(path)
     }
+}
+
+/// 检测字体是否包含某字符的字形（GlyphId(0) 为 .notdef）
+fn has_glyph(font: &Font<'static>, c: char) -> bool {
+    font.glyph(c).id().0 != 0
 }
 
 fn blend_channel(bg: f32, fg: f32, alpha: f32) -> u8 {

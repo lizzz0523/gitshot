@@ -3,7 +3,7 @@ use tiny_skia::Color;
 use super::{ColorScheme, ConfigFile};
 
 pub struct Style {
-    pub font_path: String,
+    pub fonts: Vec<String>,
     pub font_size: f32,
     pub line_height: f32,
     pub img_padding: f32,
@@ -17,7 +17,7 @@ impl Style {
     pub fn from_config(cfg: &ConfigFile) -> Self {
         let (canvas_bg, diff_style, status_style) = cfg.color_scheme.build();
         Self {
-            font_path: cfg.font_path.clone(),
+            fonts: cfg.fonts.clone(),
             font_size: cfg.font_size,
             line_height: cfg.line_height,
             img_padding: cfg.img_padding,

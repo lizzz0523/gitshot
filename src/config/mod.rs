@@ -11,7 +11,7 @@ pub use style::{DiffStyle, StatusStyle, Style};
 #[serde(default)]
 pub(crate) struct ConfigFile {
     pub color_scheme: ColorScheme,
-    pub font_path: String,
+    pub fonts: Vec<String>,
     pub font_size: f32,
     pub line_height: f32,
     pub img_padding: f32,
@@ -22,7 +22,11 @@ impl Default for ConfigFile {
     fn default() -> Self {
         Self {
             color_scheme: ColorScheme::default(),
-            font_path: "/System/Library/Fonts/Monaco.ttf".to_string(),
+            fonts: vec![
+                "/System/Library/Fonts/Monaco.ttf".to_string(),
+                "/System/Library/Fonts/STHeiti Light.ttc".to_string(),
+                "/System/Library/Fonts/Hiragino Sans GB.ttc".to_string(),
+            ],
             font_size: 13.0,
             line_height: 20.0,
             img_padding: 16.0,
