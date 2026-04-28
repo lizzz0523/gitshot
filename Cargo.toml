@@ -1,0 +1,9 @@
+[package]
+name = "diffshot"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+git2 = "0.20"
+rusttype = "0.9"
+tiny-skia = "0.11"
