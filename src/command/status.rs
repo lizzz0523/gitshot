@@ -4,7 +4,7 @@ use std::process;
 use git2::{Repository, Status, StatusOptions};
 use tiny_skia::{Color, Pixmap};
 
-use crate::config::{Config, StatusStyle};
+use crate::config::{Config, StatusStyle, Style};
 use crate::renderer::Renderer;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -203,7 +203,7 @@ fn layout_size(
     renderer: &Renderer,
     sections: &[StatusSection; 2],
     entries: &[StatusEntry],
-    style: &crate::config::Style,
+    style: &Style,
 ) -> (u32, u32, f32) {
     let indicator_w = renderer.measure_text_width("XX  ");
     let max_path_w = entries
@@ -240,9 +240,9 @@ fn draw_sections(
     sections: &[StatusSection; 2],
     img_w: u32,
     indicator_w: f32,
-    style: &crate::config::Style,
+    style: &Style,
 ) {
-    let status = &style.status;
+    let status = &style.status_style;
 
     let mut y = style.padding;
     let mut first = true;

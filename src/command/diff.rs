@@ -4,7 +4,7 @@ use std::process;
 use git2::{DiffFormat, DiffOptions, Repository};
 use tiny_skia::Pixmap;
 
-use crate::config::Config;
+use crate::config::{Config, DiffStyle, Style};
 use crate::renderer::Renderer;
 
 struct DiffLine {
@@ -96,11 +96,7 @@ fn render_diff(renderer: &Renderer, lines: &[DiffLine], config: &Config) -> Stri
     Renderer::save_pixmap(&pixmap)
 }
 
-fn layout_size(
-    renderer: &Renderer,
-    lines: &[DiffLine],
-    style: &crate::config::Style,
-) -> (u32, u32) {
+fn layout_size(renderer: &Renderer, lines: &[DiffLine], style: &Style) -> (u32, u32) {
     let max_line_w = lines
         .iter()
         .map(|l| renderer.measure_text_width(&format_line(l)))
@@ -116,9 +112,9 @@ fn draw_lines(
     pixmap: &mut Pixmap,
     lines: &[DiffLine],
     img_w: u32,
-    style: &crate::config::Style,
+    style: &Style,
 ) {
-    let diff = &style.diff;
+    let diff = &style.diff_style;
 
     for (i, line) in lines.iter().enumerate() {
         let y_top = style.padding + i as f32 * style.line_height;
@@ -154,7 +150,7 @@ fn format_line(line: &DiffLine) -> String {
     }
 }
 
-fn line_color(line: &DiffLine, text: &str, diff: &crate::config::DiffStyle) -> (u8, u8, u8) {
+fn line_color(line: &DiffLine, text: &str, diff: &DiffStyle) -> (u8, u8, u8) {
     match line.origin {
         '+' => diff.added_fg,
         '-' => diff.deleted_fg,

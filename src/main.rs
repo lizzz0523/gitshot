@@ -36,7 +36,7 @@ enum Commands {
 
 fn main() {
     let cli = Cli::parse();
-    let config = Config::default();
+    let config = Config::load();
 
     match cli.command {
         Commands::Diff { paths, whitespace } => diff::run(&config, &paths, whitespace),
