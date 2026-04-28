@@ -1,6 +1,6 @@
 use tiny_skia::Color;
 
-use super::ColorScheme;
+use super::ConfigFile;
 
 pub struct Style {
     pub font_path: String,
@@ -14,28 +14,29 @@ pub struct Style {
 }
 
 impl Style {
-    pub fn from_scheme(scheme: ColorScheme) -> Self {
-        match scheme {
-            ColorScheme::Dark => Self {
-                font_path: "/System/Library/Fonts/Monaco.ttf".to_string(),
-                font_size: 13.0,
-                line_height: 20.0,
-                padding: 16.0,
-                max_img_width: 1800,
-                canvas_bg: Color::from_rgba8(24, 24, 27, 255),
-                diff_style: DiffStyle::dark(),
-                status_style: StatusStyle::dark(),
-            },
-            ColorScheme::Light => Self {
-                font_path: "/System/Library/Fonts/Monaco.ttf".to_string(),
-                font_size: 13.0,
-                line_height: 20.0,
-                padding: 16.0,
-                max_img_width: 1800,
-                canvas_bg: Color::from_rgba8(255, 255, 255, 255),
-                diff_style: DiffStyle::light(),
-                status_style: StatusStyle::light(),
-            },
+    pub fn from_config(cfg: &ConfigFile) -> Self {
+        let (canvas_bg, diff_style, status_style) = match cfg.color_scheme {
+            super::ColorScheme::Dark => (
+                Color::from_rgba8(24, 24, 27, 255),
+                DiffStyle::dark(),
+                StatusStyle::dark(),
+            ),
+            super::ColorScheme::Light => (
+                Color::from_rgba8(255, 255, 255, 255),
+                DiffStyle::light(),
+                StatusStyle::light(),
+            ),
+        };
+
+        Self {
+            font_path: cfg.font_path.clone(),
+            font_size: cfg.font_size,
+            line_height: cfg.line_height,
+            padding: cfg.padding,
+            max_img_width: cfg.max_img_width,
+            canvas_bg,
+            diff_style,
+            status_style,
         }
     }
 }
