@@ -5,6 +5,7 @@ use crate::config::Config;
 
 mod command;
 mod config;
+mod inline_diff;
 mod renderer;
 
 /// Render git output as a PNG image

@@ -67,6 +67,32 @@ impl Renderer {
         );
     }
 
+    /// Draw a background rectangle at an arbitrary (x, y) with given width and height.
+    pub fn draw_rect_bg(
+        &self,
+        pixmap: &mut Pixmap,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        color: Color,
+    ) {
+        if w <= 0.0 || h <= 0.0 {
+            return;
+        }
+        let rect = Rect::from_xywh(x, y, w, h).expect("invalid rect");
+        let path = PathBuilder::from_rect(rect);
+        let mut paint = Paint::default();
+        paint.set_color(color);
+        pixmap.fill_path(
+            &path,
+            &paint,
+            FillRule::Winding,
+            Transform::identity(),
+            None,
+        );
+    }
+
     pub fn draw_text(&self, pixmap: &mut Pixmap, text: &str, x: f32, y: f32, color: (u8, u8, u8)) {
         for glyph in self.font.layout(text, self.scale, point(x, y)) {
             if let Some(bb) = glyph.pixel_bounding_box() {
