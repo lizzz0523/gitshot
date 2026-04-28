@@ -1,4 +1,4 @@
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use git2::{DiffFormat, DiffOptions, Repository};
 use rusttype::{point, Font, Scale};
 use std::fs;
@@ -7,13 +7,22 @@ use std::process;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tiny_skia::{Color, FillRule, Paint, PathBuilder, Pixmap, Rect, Transform};
 
-/// Render git diff as a PNG image
+/// Render git output as a PNG image
 #[derive(Parser)]
 #[command(name = "gitshot", version, about)]
 struct Cli {
-    /// Path(s) to diff (file or directory). Defaults to current directory.
-    #[arg(default_values_t = vec![".".to_string()])]
-    paths: Vec<String>,
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Render git diff as a PNG image
+    Diff {
+        /// Path(s) to diff (file or directory). Defaults to current directory.
+        #[arg(default_values_t = vec![".".to_string()])]
+        paths: Vec<String>,
+    },
 }
 
 struct DiffLine {
@@ -30,13 +39,15 @@ const MAX_IMG_WIDTH: u32 = 1800;
 fn main() {
     let cli = Cli::parse();
 
-    let target: PathBuf = if cli.paths.len() == 1 && cli.paths[0] == "." {
+    let Commands::Diff { paths } = cli.command;
+
+    let target: PathBuf = if paths.len() == 1 && paths[0] == "." {
         std::env::current_dir().unwrap_or_else(|e| {
             eprintln!("error: cannot get current directory: {e}");
             process::exit(1);
         })
     } else {
-        PathBuf::from(&cli.paths[0])
+        PathBuf::from(&paths[0])
     };
 
     let repo = Repository::discover(&target).unwrap_or_else(|e| {
@@ -54,7 +65,7 @@ fn main() {
         .recurse_untracked_dirs(true)
         .show_untracked_content(true);
 
-    for path_str in &cli.paths {
+    for path_str in &paths {
         let p = PathBuf::from(path_str);
         if let Ok(canonical) = p.canonicalize()
             && let Ok(rel) = canonical.strip_prefix(workdir)
