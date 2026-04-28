@@ -1,45 +1,20 @@
-use clap::{Parser, Subcommand};
+use clap::Parser;
 
-use crate::command::{diff, status};
+use crate::cli::{Cli, Commands};
 use crate::config::Config;
 
+mod cli;
 mod command;
 mod config;
+mod model;
 mod renderer;
 
-/// Render git output as a PNG image
-#[derive(Parser)]
-#[command(name = "gitshot", version, about)]
-struct Cli {
-    #[command(subcommand)]
-    command: Commands,
-}
-
-#[derive(Subcommand)]
-enum Commands {
-    /// Render git diff as a PNG image
-    Diff {
-        /// Path(s) to diff (file or directory). Defaults to current directory.
-        #[arg(default_values_t = vec![".".to_string()])]
-        paths: Vec<String>,
-        /// Show whitespace changes (ignored by default)
-        #[arg(short = 'w', long)]
-        whitespace: bool,
-    },
-    /// Render git status as a PNG image
-    Status {
-        /// Path(s) to check status (file or directory). Defaults to current directory.
-        #[arg(default_values_t = vec![".".to_string()])]
-        paths: Vec<String>,
-    },
-}
-
-fn main() {
+fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
-    let config = Config::load();
+    let config = Config::load()?;
 
     match cli.command {
-        Commands::Diff { paths, whitespace } => diff::run(&config, &paths, whitespace),
-        Commands::Status { paths } => status::run(&config, &paths),
+        Commands::Diff { paths, whitespace } => command::diff::run(&config, &paths, whitespace),
+        Commands::Status { paths } => command::status::run(&config, &paths),
     }
 }

@@ -1,7 +1,7 @@
 use std::fs;
-use std::process;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use anyhow::{Context, Result, anyhow};
 use rusttype::{Font, Scale, point};
 use tiny_skia::{Color, FillRule, Paint, PathBuilder, Pixmap, Rect, Transform};
 
@@ -13,24 +13,18 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn new(config: &Config) -> Self {
-        let font_data = fs::read(&config.style.font_path).unwrap_or_else(|e| {
-            eprintln!("error: failed to load font: {e}");
-            process::exit(1);
-        });
-        let font = Font::try_from_vec(font_data).unwrap_or_else(|| {
-            eprintln!("error: failed to parse font");
-            process::exit(1);
-        });
+    pub fn new(cfg: &Config) -> Result<Self> {
+        let path = &cfg.style.font_path;
+        let font_data = fs::read(path).with_context(|| format!("failed to load font: {path}"))?;
+        let font =
+            Font::try_from_vec(font_data).ok_or_else(|| anyhow!("failed to parse font: {path}"))?;
         let scale = Scale {
-            x: config.style.font_size,
-            y: config.style.font_size,
+            x: cfg.style.font_size,
+            y: cfg.style.font_size,
         };
-        Self { font, scale }
+        Ok(Self { font, scale })
     }
 
-    /// Compute the baseline y for text vertically centered within a row
-    /// starting at `y_top` with height `line_height`.
     pub fn centered_baseline(&self, y_top: f32, line_height: f32) -> f32 {
         let metrics = self.font.v_metrics(self.scale);
         let text_height = metrics.ascent - metrics.descent;
@@ -38,15 +32,17 @@ impl Renderer {
     }
 
     pub fn measure_text_width(&self, text: &str) -> f32 {
-        let mut width = 0.0;
-        for c in text.chars() {
-            let glyph = self.font.glyph(c).scaled(self.scale);
-            width += glyph.h_metrics().advance_width;
-        }
-        width
+        text.chars()
+            .map(|c| {
+                self.font
+                    .glyph(c)
+                    .scaled(self.scale)
+                    .h_metrics()
+                    .advance_width
+            })
+            .sum()
     }
 
-    /// Draw a background rectangle at an arbitrary (x, y) with given width and height.
     pub fn draw_rect(&self, pixmap: &mut Pixmap, x: f32, y: f32, w: f32, h: f32, color: Color) {
         if w <= 0.0 || h <= 0.0 {
             return;
@@ -65,7 +61,7 @@ impl Renderer {
     }
 
     pub fn draw_text(&self, pixmap: &mut Pixmap, text: &str, x: f32, y: f32, color: Color) {
-        // tiny_skia Color stores RGBA as f32 in 0.0-1.0 range; convert to 0-255 for blending.
+        // tiny_skia 的 Color 以 f32 0.0-1.0 存储；这里换算成 0-255 用于逐像素混合
         let fg_r = color.red() * 255.0;
         let fg_g = color.green() * 255.0;
         let fg_b = color.blue() * 255.0;
@@ -96,27 +92,20 @@ impl Renderer {
         }
     }
 
-    pub fn save_pixmap(pixmap: &Pixmap) -> String {
+    pub fn save_pixmap(pixmap: &Pixmap) -> Result<String> {
         let ts = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .expect("system clock is before UNIX epoch")
             .as_millis();
         let path = format!("/tmp/gitshot_{ts}.png");
 
-        let png_data = pixmap.encode_png().unwrap_or_else(|e| {
-            eprintln!("error: failed to encode PNG: {e}");
-            process::exit(1);
-        });
-        fs::write(&path, png_data).unwrap_or_else(|e| {
-            eprintln!("error: failed to write PNG: {e}");
-            process::exit(1);
-        });
+        let png_data = pixmap.encode_png().context("failed to encode PNG")?;
+        fs::write(&path, png_data).with_context(|| format!("failed to write PNG: {path}"))?;
 
-        path
+        Ok(path)
     }
 }
 
-/// Blend a foreground channel onto a background channel with the given alpha.
 fn blend_channel(bg: f32, fg: f32, alpha: f32) -> u8 {
     let result = bg * (1.0 - alpha) + fg * alpha;
     result.round().clamp(0.0, 255.0) as u8

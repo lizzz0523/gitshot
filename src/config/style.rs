@@ -1,6 +1,6 @@
 use tiny_skia::Color;
 
-use super::ConfigFile;
+use super::{ColorScheme, ConfigFile};
 
 pub struct Style {
     pub font_path: String,
@@ -15,19 +15,7 @@ pub struct Style {
 
 impl Style {
     pub fn from_config(cfg: &ConfigFile) -> Self {
-        let (canvas_bg, diff_style, status_style) = match cfg.color_scheme {
-            super::ColorScheme::Dark => (
-                Color::from_rgba8(24, 24, 27, 255),
-                DiffStyle::dark(),
-                StatusStyle::dark(),
-            ),
-            super::ColorScheme::Light => (
-                Color::from_rgba8(255, 255, 255, 255),
-                DiffStyle::light(),
-                StatusStyle::light(),
-            ),
-        };
-
+        let (canvas_bg, diff_style, status_style) = cfg.color_scheme.build();
         Self {
             font_path: cfg.font_path.clone(),
             font_size: cfg.font_size,
@@ -37,6 +25,23 @@ impl Style {
             canvas_bg,
             diff_style,
             status_style,
+        }
+    }
+}
+
+impl ColorScheme {
+    fn build(self) -> (Color, DiffStyle, StatusStyle) {
+        match self {
+            Self::Dark => (
+                Color::from_rgba8(24, 24, 27, 255),
+                DiffStyle::dark(),
+                StatusStyle::dark(),
+            ),
+            Self::Light => (
+                Color::from_rgba8(255, 255, 255, 255),
+                DiffStyle::light(),
+                StatusStyle::light(),
+            ),
         }
     }
 }
@@ -87,8 +92,6 @@ impl DiffStyle {
         }
     }
 }
-
-// ── StatusStyle ─────────────────────────────────────────────────────
 
 pub struct StatusStyle {
     pub title_fg: Color,
