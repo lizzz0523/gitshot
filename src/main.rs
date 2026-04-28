@@ -1,10 +1,20 @@
+use clap::Parser;
 use git2::{DiffFormat, DiffOptions, Repository};
 use rusttype::{point, Font, Scale};
-use std::env;
 use std::fs;
+use std::path::PathBuf;
 use std::process;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tiny_skia::{Color, FillRule, Paint, PathBuilder, Pixmap, Rect, Transform};
+
+/// Render git diff as a PNG image
+#[derive(Parser)]
+#[command(name = "diffshot", version, about)]
+struct Cli {
+    /// Path(s) to diff (file or directory). Defaults to current directory.
+    #[arg(default_values_t = vec![".".to_string()])]
+    paths: Vec<String>,
+}
 
 struct DiffLine {
     origin: char,
@@ -18,13 +28,24 @@ const PADDING: f32 = 16.0;
 const MAX_IMG_WIDTH: u32 = 1800;
 
 fn main() {
-    let cwd = env::current_dir().unwrap_or_else(|e| {
-        eprintln!("error: cannot get current directory: {e}");
+    let cli = Cli::parse();
+
+    let target: PathBuf = if cli.paths.len() == 1 && cli.paths[0] == "." {
+        std::env::current_dir().unwrap_or_else(|e| {
+            eprintln!("error: cannot get current directory: {e}");
+            process::exit(1);
+        })
+    } else {
+        PathBuf::from(&cli.paths[0])
+    };
+
+    let repo = Repository::discover(&target).unwrap_or_else(|e| {
+        eprintln!("error: not a git repository: {e}");
         process::exit(1);
     });
 
-    let repo = Repository::discover(&cwd).unwrap_or_else(|e| {
-        eprintln!("error: not a git repository: {e}");
+    let workdir = repo.workdir().unwrap_or_else(|| {
+        eprintln!("error: bare repository has no working directory");
         process::exit(1);
     });
 
@@ -32,6 +53,15 @@ fn main() {
     opts.include_untracked(true)
         .recurse_untracked_dirs(true)
         .show_untracked_content(true);
+
+    for path_str in &cli.paths {
+        let p = PathBuf::from(path_str);
+        if let Ok(canonical) = p.canonicalize()
+            && let Ok(rel) = canonical.strip_prefix(workdir)
+        {
+            opts.pathspec(rel.to_string_lossy().into_owned());
+        }
+    }
 
     let diff = repo
         .diff_index_to_workdir(None, Some(&mut opts))
