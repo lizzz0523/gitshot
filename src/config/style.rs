@@ -49,6 +49,7 @@ impl ColorScheme {
 // ── DiffStyle ───────────────────────────────────────────────────────
 
 pub struct DiffStyle {
+    pub section_title_fg: Color,
     pub added_bg: Color,
     pub deleted_bg: Color,
     pub added_inline_bg: Color,
@@ -64,6 +65,7 @@ pub struct DiffStyle {
 impl DiffStyle {
     fn dark() -> Self {
         Self {
+            section_title_fg: Color::from_rgba8(88, 166, 255, 255),
             added_bg: Color::from_rgba8(46, 160, 67, 30),
             deleted_bg: Color::from_rgba8(248, 81, 73, 30),
             added_inline_bg: Color::from_rgba8(46, 160, 67, 70),
@@ -79,6 +81,7 @@ impl DiffStyle {
 
     fn light() -> Self {
         Self {
+            section_title_fg: Color::from_rgba8(4, 81, 165, 255),
             added_bg: Color::from_rgba8(46, 160, 67, 25),
             deleted_bg: Color::from_rgba8(248, 81, 73, 25),
             added_inline_bg: Color::from_rgba8(46, 160, 67, 55),

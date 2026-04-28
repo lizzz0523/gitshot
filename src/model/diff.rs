@@ -7,6 +7,12 @@ use tiny_skia::Color;
 use crate::config::DiffStyle;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
+pub enum DiffSource {
+    Staged,
+    Unstaged,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum LineKind {
     FileHeader, // 'F' 且 content 以 "diff --git" 开头
     Hunk,       // 'H'
@@ -44,41 +50,84 @@ pub struct DiffLine {
     pub inline_ranges: Vec<Range<usize>>,
 }
 
-impl DiffLine {
+pub struct DiffSection {
+    pub title: &'static str,
+    pub lines: Vec<DiffLine>,
+}
+
+impl DiffSection {
     pub fn from_repo(
         repo: &Repository,
         pathspecs: &[String],
         whitespace: bool,
     ) -> Result<Vec<Self>> {
-        let mut opts = DiffOptions::new();
-        opts.include_untracked(true)
-            .recurse_untracked_dirs(true)
-            .show_untracked_content(true)
-            .ignore_whitespace(!whitespace);
-        for ps in pathspecs {
-            opts.pathspec(ps);
+        let sources = [
+            (DiffSource::Staged, "Staged changes"),
+            (DiffSource::Unstaged, "Unstaged changes"),
+        ];
+
+        let mut sections = Vec::new();
+        for (source, title) in sources {
+            let lines = collect_diff_lines(source, repo, pathspecs, whitespace)?;
+            if !lines.is_empty() {
+                sections.push(Self { title, lines });
+            }
         }
+        Ok(sections)
+    }
+}
 
-        let diff = repo
+fn collect_diff_lines(
+    source: DiffSource,
+    repo: &Repository,
+    pathspecs: &[String],
+    whitespace: bool,
+) -> Result<Vec<DiffLine>> {
+    let mut opts = DiffOptions::new();
+    opts.ignore_whitespace(!whitespace);
+    for ps in pathspecs {
+        opts.pathspec(ps);
+    }
+
+    match source {
+        DiffSource::Staged => {
+            // staged 不可能有 untracked 文件
+        }
+        DiffSource::Unstaged => {
+            opts.include_untracked(true)
+                .recurse_untracked_dirs(true)
+                .show_untracked_content(true);
+        }
+    }
+
+    let diff = match source {
+        DiffSource::Staged => {
+            let head = repo.head().context("failed to get HEAD")?;
+            let tree = head.peel_to_tree().context("failed to peel HEAD to tree")?;
+            repo.diff_tree_to_index(Some(&tree), None, Some(&mut opts))
+                .context("failed to get staged diff")?
+        }
+        DiffSource::Unstaged => repo
             .diff_index_to_workdir(None, Some(&mut opts))
-            .context("failed to get diff")?;
+            .context("failed to get unstaged diff")?,
+    };
 
-        let mut lines: Vec<Self> = Vec::new();
-        diff.print(DiffFormat::Patch, |_delta, _hunk, line| {
-            let kind = classify_origin(line.origin(), line.content());
-            let content = String::from_utf8_lossy(line.content())
-                .trim_end_matches('\n')
-                .to_owned();
+    let mut lines: Vec<DiffLine> = Vec::new();
+    diff.print(DiffFormat::Patch, |_delta, _hunk, line| {
+        let kind = classify_origin(line.origin(), line.content());
+        let content = String::from_utf8_lossy(line.content())
+            .trim_end_matches('\n')
+            .to_owned();
 
-            // 非首个文件前插入分隔行，视觉区分多文件 diff
+        // 非首个文件前插入分隔行，视觉区分多文件 diff
             if kind == LineKind::FileHeader && !lines.is_empty() {
-                lines.push(Self {
+                lines.push(DiffLine {
                     kind: LineKind::Separator,
                     content: String::new(),
                     inline_ranges: Vec::new(),
                 });
             }
-            lines.push(Self {
+            lines.push(DiffLine {
                 kind,
                 content,
                 inline_ranges: Vec::new(),
@@ -89,7 +138,6 @@ impl DiffLine {
 
         annotate_inline_diffs(&mut lines);
         Ok(lines)
-    }
 }
 
 fn classify_origin(origin: char, content: &[u8]) -> LineKind {
