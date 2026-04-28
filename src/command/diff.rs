@@ -10,7 +10,7 @@ struct DiffLine {
     content: String,
 }
 
-pub fn run(paths: &[String]) {
+pub fn run(paths: &[String], whitespace: bool) {
     let target: PathBuf = if paths.len() == 1 && paths[0] == "." {
         std::env::current_dir().unwrap_or_else(|e| {
             eprintln!("error: cannot get current directory: {e}");
@@ -33,7 +33,8 @@ pub fn run(paths: &[String]) {
     let mut opts = DiffOptions::new();
     opts.include_untracked(true)
         .recurse_untracked_dirs(true)
-        .show_untracked_content(true);
+        .show_untracked_content(true)
+        .ignore_whitespace(!whitespace);
 
     for path_str in paths {
         let p = PathBuf::from(path_str);

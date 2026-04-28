@@ -18,6 +18,9 @@ enum Commands {
         /// Path(s) to diff (file or directory). Defaults to current directory.
         #[arg(default_values_t = vec![".".to_string()])]
         paths: Vec<String>,
+        /// Show whitespace changes (ignored by default)
+        #[arg(short = 'w', long)]
+        whitespace: bool,
     },
     /// Render git status as a PNG image
     Status {
@@ -31,7 +34,7 @@ pub fn run() {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Diff { paths } => diff::run(&paths),
+        Commands::Diff { paths, whitespace } => diff::run(&paths, whitespace),
         Commands::Status { paths } => status::run(&paths),
     }
 }
