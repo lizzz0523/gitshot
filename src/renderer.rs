@@ -46,15 +46,12 @@ impl Renderer {
         width
     }
 
-    pub fn draw_line_bg(
-        &self,
-        pixmap: &mut Pixmap,
-        y: f32,
-        width: u32,
-        line_height: f32,
-        color: Color,
-    ) {
-        let rect = Rect::from_xywh(0.0, y, width as f32, line_height).expect("invalid rect");
+    /// Draw a background rectangle at an arbitrary (x, y) with given width and height.
+    pub fn draw_rect(&self, pixmap: &mut Pixmap, x: f32, y: f32, w: f32, h: f32, color: Color) {
+        if w <= 0.0 || h <= 0.0 {
+            return;
+        }
+        let rect = Rect::from_xywh(x, y, w, h).expect("invalid rect");
         let path = PathBuilder::from_rect(rect);
         let mut paint = Paint::default();
         paint.set_color(color);
@@ -67,7 +64,13 @@ impl Renderer {
         );
     }
 
-    pub fn draw_text(&self, pixmap: &mut Pixmap, text: &str, x: f32, y: f32, color: (u8, u8, u8)) {
+    pub fn draw_text(&self, pixmap: &mut Pixmap, text: &str, x: f32, y: f32, color: Color) {
+        // tiny_skia Color stores RGBA as f32 in 0.0-1.0 range; convert to 0-255 for blending.
+        let fg_r = color.red() * 255.0;
+        let fg_g = color.green() * 255.0;
+        let fg_b = color.blue() * 255.0;
+        let color_alpha = color.alpha();
+
         for glyph in self.font.layout(text, self.scale, point(x, y)) {
             if let Some(bb) = glyph.pixel_bounding_box() {
                 glyph.draw(|gx, gy, v| {
@@ -83,9 +86,10 @@ impl Renderer {
                         let bg_g = f32::from(data[idx + 1]);
                         let bg_b = f32::from(data[idx + 2]);
 
-                        data[idx] = blend_channel(bg_r, color.0, v);
-                        data[idx + 1] = blend_channel(bg_g, color.1, v);
-                        data[idx + 2] = blend_channel(bg_b, color.2, v);
+                        let alpha = color_alpha * v;
+                        data[idx] = blend_channel(bg_r, fg_r, alpha);
+                        data[idx + 1] = blend_channel(bg_g, fg_g, alpha);
+                        data[idx + 2] = blend_channel(bg_b, fg_b, alpha);
                     }
                 });
             }
@@ -113,7 +117,7 @@ impl Renderer {
 }
 
 /// Blend a foreground channel onto a background channel with the given alpha.
-fn blend_channel(bg: f32, fg: u8, alpha: f32) -> u8 {
-    let result = bg * (1.0 - alpha) + f32::from(fg) * alpha;
+fn blend_channel(bg: f32, fg: f32, alpha: f32) -> u8 {
+    let result = bg * (1.0 - alpha) + fg * alpha;
     result.round().clamp(0.0, 255.0) as u8
 }

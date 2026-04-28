@@ -31,7 +31,7 @@ impl StatusKind {
         }
     }
 
-    fn fg(self, style: &StatusStyle) -> (u8, u8, u8) {
+    fn fg(self, style: &StatusStyle) -> Color {
         match self {
             Self::None => style.path_fg,
             Self::Added => style.added_fg,
@@ -272,7 +272,7 @@ fn draw_sections(
         // Entries
         for (kind, path) in &section.entries {
             if let Some(bg) = kind.bg(status_style) {
-                renderer.draw_line_bg(pixmap, y, img_w, style.line_height, bg);
+                renderer.draw_rect(pixmap, 0.0, y, img_w as f32, style.line_height, bg);
             }
 
             renderer.draw_text(

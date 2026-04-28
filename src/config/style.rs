@@ -46,12 +46,14 @@ impl Style {
 pub struct DiffStyle {
     pub added_bg: Color,
     pub deleted_bg: Color,
+    pub added_inline_bg: Color,
+    pub deleted_inline_bg: Color,
     pub separator_bg: Color,
-    pub added_fg: (u8, u8, u8),
-    pub deleted_fg: (u8, u8, u8),
-    pub hunk_fg: (u8, u8, u8),
-    pub file_fg: (u8, u8, u8),
-    pub default_fg: (u8, u8, u8),
+    pub added_fg: Color,
+    pub deleted_fg: Color,
+    pub hunk_fg: Color,
+    pub file_fg: Color,
+    pub default_fg: Color,
 }
 
 impl DiffStyle {
@@ -59,12 +61,14 @@ impl DiffStyle {
         Self {
             added_bg: Color::from_rgba8(46, 160, 67, 30),
             deleted_bg: Color::from_rgba8(248, 81, 73, 30),
+            added_inline_bg: Color::from_rgba8(46, 160, 67, 70),
+            deleted_inline_bg: Color::from_rgba8(248, 81, 73, 70),
             separator_bg: Color::from_rgba8(48, 54, 61, 255),
-            added_fg: (63, 185, 80),
-            deleted_fg: (248, 81, 73),
-            hunk_fg: (187, 128, 230),
-            file_fg: (88, 166, 255),
-            default_fg: (201, 209, 217),
+            added_fg: Color::from_rgba8(63, 185, 80, 255),
+            deleted_fg: Color::from_rgba8(248, 81, 73, 255),
+            hunk_fg: Color::from_rgba8(187, 128, 230, 255),
+            file_fg: Color::from_rgba8(88, 166, 255, 255),
+            default_fg: Color::from_rgba8(201, 209, 217, 255),
         }
     }
 
@@ -72,12 +76,14 @@ impl DiffStyle {
         Self {
             added_bg: Color::from_rgba8(46, 160, 67, 25),
             deleted_bg: Color::from_rgba8(248, 81, 73, 25),
+            added_inline_bg: Color::from_rgba8(46, 160, 67, 55),
+            deleted_inline_bg: Color::from_rgba8(248, 81, 73, 55),
             separator_bg: Color::from_rgba8(216, 222, 228, 255),
-            added_fg: (26, 127, 55),
-            deleted_fg: (207, 34, 46),
-            hunk_fg: (111, 78, 167),
-            file_fg: (4, 81, 165),
-            default_fg: (31, 35, 40),
+            added_fg: Color::from_rgba8(26, 127, 55, 255),
+            deleted_fg: Color::from_rgba8(207, 34, 46, 255),
+            hunk_fg: Color::from_rgba8(111, 78, 167, 255),
+            file_fg: Color::from_rgba8(4, 81, 165, 255),
+            default_fg: Color::from_rgba8(31, 35, 40, 255),
         }
     }
 }
@@ -85,51 +91,51 @@ impl DiffStyle {
 // ── StatusStyle ─────────────────────────────────────────────────────
 
 pub struct StatusStyle {
-    pub title_fg: (u8, u8, u8),
-    pub path_fg: (u8, u8, u8),
-    pub added_fg: (u8, u8, u8),
+    pub title_fg: Color,
+    pub path_fg: Color,
+    pub added_fg: Color,
     pub added_bg: Color,
-    pub modified_fg: (u8, u8, u8),
+    pub modified_fg: Color,
     pub modified_bg: Color,
-    pub deleted_fg: (u8, u8, u8),
+    pub deleted_fg: Color,
     pub deleted_bg: Color,
-    pub renamed_fg: (u8, u8, u8),
-    pub typechange_fg: (u8, u8, u8),
-    pub conflict_fg: (u8, u8, u8),
+    pub renamed_fg: Color,
+    pub typechange_fg: Color,
+    pub conflict_fg: Color,
     pub conflict_bg: Color,
 }
 
 impl StatusStyle {
     fn dark() -> Self {
         Self {
-            title_fg: (88, 166, 255),
-            path_fg: (201, 209, 217),
-            added_fg: (63, 185, 80),
+            title_fg: Color::from_rgba8(88, 166, 255, 255),
+            path_fg: Color::from_rgba8(201, 209, 217, 255),
+            added_fg: Color::from_rgba8(63, 185, 80, 255),
             added_bg: Color::from_rgba8(46, 160, 67, 25),
-            modified_fg: (210, 153, 34),
+            modified_fg: Color::from_rgba8(210, 153, 34, 255),
             modified_bg: Color::from_rgba8(210, 153, 34, 25),
-            deleted_fg: (248, 81, 73),
+            deleted_fg: Color::from_rgba8(248, 81, 73, 255),
             deleted_bg: Color::from_rgba8(248, 81, 73, 25),
-            renamed_fg: (88, 166, 255),
-            typechange_fg: (187, 128, 230),
-            conflict_fg: (248, 81, 73),
+            renamed_fg: Color::from_rgba8(88, 166, 255, 255),
+            typechange_fg: Color::from_rgba8(187, 128, 230, 255),
+            conflict_fg: Color::from_rgba8(248, 81, 73, 255),
             conflict_bg: Color::from_rgba8(248, 81, 73, 25),
         }
     }
 
     fn light() -> Self {
         Self {
-            title_fg: (4, 81, 165),
-            path_fg: (31, 35, 40),
-            added_fg: (26, 127, 55),
+            title_fg: Color::from_rgba8(4, 81, 165, 255),
+            path_fg: Color::from_rgba8(31, 35, 40, 255),
+            added_fg: Color::from_rgba8(26, 127, 55, 255),
             added_bg: Color::from_rgba8(46, 160, 67, 18),
-            modified_fg: (154, 103, 0),
+            modified_fg: Color::from_rgba8(154, 103, 0, 255),
             modified_bg: Color::from_rgba8(210, 153, 34, 18),
-            deleted_fg: (207, 34, 46),
+            deleted_fg: Color::from_rgba8(207, 34, 46, 255),
             deleted_bg: Color::from_rgba8(248, 81, 73, 18),
-            renamed_fg: (4, 81, 165),
-            typechange_fg: (111, 78, 167),
-            conflict_fg: (207, 34, 46),
+            renamed_fg: Color::from_rgba8(4, 81, 165, 255),
+            typechange_fg: Color::from_rgba8(111, 78, 167, 255),
+            conflict_fg: Color::from_rgba8(207, 34, 46, 255),
             conflict_bg: Color::from_rgba8(248, 81, 73, 18),
         }
     }
