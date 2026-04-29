@@ -152,7 +152,7 @@ impl Renderer {
     }
 
     pub fn save_pixmap(pixmap: &Pixmap, output: Option<&Path>) -> Result<PathBuf> {
-        let path = match output {
+        let png_path = match output {
             Some(p) => {
                 if p.is_dir() {
                     bail!("-o expects a file path, got directory: {}", p.display());
@@ -167,12 +167,11 @@ impl Renderer {
                 env::temp_dir().join(format!("gitshot_{ts}.png"))
             }
         };
-
         let png_data = pixmap.encode_png().context("failed to encode PNG")?;
-        fs::write(&path, png_data)
-            .with_context(|| format!("failed to write PNG: {}", path.display()))?;
 
-        Ok(path::absolute(&path).unwrap_or(path))
+        fs::write(&png_path, png_data)
+            .with_context(|| format!("failed to write PNG: {}", png_path.display()))?;
+        Ok(path::absolute(&png_path).unwrap_or(png_path))
     }
 }
 
