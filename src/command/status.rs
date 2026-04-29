@@ -1,20 +1,23 @@
+use std::path::{Path, PathBuf};
+
 use anyhow::Result;
 use tiny_skia::Pixmap;
 
+use crate::cli::StatusArgs;
 use crate::config::Config;
 use crate::model::status::{StatusEntry, StatusKind};
 use crate::renderer::Renderer;
 
-pub fn run(cfg: &Config, paths: &[String]) -> Result<()> {
-    let (repo, pathspecs) = super::open_repo_and_pathspecs(paths)?;
+pub fn run(cfg: &Config, args: &StatusArgs) -> Result<()> {
+    let (repo, pathspecs) = super::open_repo_and_pathspecs(&args.paths)?;
     let entries = StatusEntry::from_repo(&repo, &pathspecs)?;
     if entries.is_empty() {
         return Ok(());
     }
 
     let renderer = Renderer::new(cfg)?;
-    let path = StatusView::new(&entries, &renderer, cfg).render()?;
-    println!("{path}");
+    let path = StatusView::new(&entries, &renderer, cfg).render(args.output.output.as_deref())?;
+    println!("{}", path.display());
     Ok(())
 }
 
@@ -43,7 +46,7 @@ impl<'a> StatusView<'a> {
         }
     }
 
-    fn render(&self) -> Result<String> {
+    fn render(&self, output: Option<&Path>) -> Result<PathBuf> {
         let style = &self.cfg.style;
         let sections = self.build_sections();
         let (img_w, img_h, indicator_w) = self.layout_size(&sections);
@@ -52,7 +55,7 @@ impl<'a> StatusView<'a> {
         pixmap.fill(style.canvas_bg);
         self.draw_sections(&mut pixmap, &sections, img_w, indicator_w);
 
-        Renderer::save_pixmap(&pixmap)
+        Renderer::save_pixmap(&pixmap, output)
     }
 
     fn build_sections(&self) -> [StatusSection<'_>; 2] {

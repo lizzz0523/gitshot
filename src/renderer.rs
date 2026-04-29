@@ -1,7 +1,9 @@
+use std::env;
 use std::fs;
+use std::path::{self, Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result, anyhow, bail};
 use rusttype::{Font, Scale, point};
 use tiny_skia::{Color, FillRule, Paint, PathBuilder, Pixmap, Rect, Transform};
 
@@ -149,17 +151,28 @@ impl Renderer {
         }
     }
 
-    pub fn save_pixmap(pixmap: &Pixmap) -> Result<String> {
-        let ts = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("system clock is before UNIX epoch")
-            .as_millis();
-        let path = format!("/tmp/gitshot_{ts}.png");
+    pub fn save_pixmap(pixmap: &Pixmap, output: Option<&Path>) -> Result<PathBuf> {
+        let path = match output {
+            Some(p) => {
+                if p.is_dir() {
+                    bail!("-o expects a file path, got directory: {}", p.display());
+                }
+                p.to_path_buf()
+            }
+            None => {
+                let ts = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .expect("system clock is before UNIX epoch")
+                    .as_millis();
+                env::temp_dir().join(format!("gitshot_{ts}.png"))
+            }
+        };
 
         let png_data = pixmap.encode_png().context("failed to encode PNG")?;
-        fs::write(&path, png_data).with_context(|| format!("failed to write PNG: {path}"))?;
+        fs::write(&path, png_data)
+            .with_context(|| format!("failed to write PNG: {}", path.display()))?;
 
-        Ok(path)
+        Ok(path::absolute(&path).unwrap_or(path))
     }
 }
 

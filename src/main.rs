@@ -14,7 +14,7 @@ fn main() -> anyhow::Result<()> {
     let config = Config::load()?;
 
     match cli.command {
-        Commands::Diff { paths, whitespace } => command::diff::run(&config, &paths, whitespace),
-        Commands::Status { paths } => command::status::run(&config, &paths),
+        Commands::Diff(args) => command::diff::run(&config, &args),
+        Commands::Status(args) => command::status::run(&config, &args),
     }
 }

@@ -1,20 +1,23 @@
+use std::path::{Path, PathBuf};
+
 use anyhow::Result;
 use tiny_skia::{Color, Pixmap};
 
+use crate::cli::DiffArgs;
 use crate::config::Config;
 use crate::model::diff::{DiffLine, DiffSection, LineKind};
 use crate::renderer::Renderer;
 
-pub fn run(cfg: &Config, paths: &[String], whitespace: bool) -> Result<()> {
-    let (repo, pathspecs) = super::open_repo_and_pathspecs(paths)?;
-    let sections = DiffSection::from_repo(&repo, &pathspecs, whitespace)?;
+pub fn run(cfg: &Config, args: &DiffArgs) -> Result<()> {
+    let (repo, pathspecs) = super::open_repo_and_pathspecs(&args.paths)?;
+    let sections = DiffSection::from_repo(&repo, &pathspecs, args.whitespace)?;
     if sections.is_empty() {
         return Ok(());
     }
 
     let renderer = Renderer::new(cfg)?;
-    let path = DiffView::new(&sections, &renderer, cfg).render()?;
-    println!("{path}");
+    let path = DiffView::new(&sections, &renderer, cfg).render(args.output.output.as_deref())?;
+    println!("{}", path.display());
     Ok(())
 }
 
@@ -33,7 +36,7 @@ impl<'a> DiffView<'a> {
         }
     }
 
-    fn render(&self) -> Result<String> {
+    fn render(&self, output: Option<&Path>) -> Result<PathBuf> {
         let style = &self.cfg.style;
         let (img_w, img_h) = self.layout_size();
 
@@ -41,7 +44,7 @@ impl<'a> DiffView<'a> {
         pixmap.fill(style.canvas_bg);
         self.draw_sections(&mut pixmap, img_w);
 
-        Renderer::save_pixmap(&pixmap)
+        Renderer::save_pixmap(&pixmap, output)
     }
 
     fn layout_size(&self) -> (u32, u32) {

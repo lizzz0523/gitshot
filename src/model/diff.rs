@@ -84,6 +84,7 @@ fn collect_diff_lines(
     whitespace: bool,
 ) -> Result<Vec<DiffLine>> {
     let mut opts = DiffOptions::new();
+
     opts.ignore_whitespace(!whitespace);
     for ps in pathspecs {
         opts.pathspec(ps);
@@ -137,6 +138,7 @@ fn collect_diff_lines(
     .context("failed to collect diff")?;
 
     annotate_inline_diffs(&mut lines);
+
     Ok(lines)
 }
 
@@ -274,6 +276,7 @@ fn lcs_match_mask(a: &[Token<'_>], b: &[Token<'_>]) -> (Vec<bool>, Vec<bool>) {
 fn count_non_ws(tokens: &[Token<'_>], matched: &[bool]) -> (usize, usize) {
     let mut total = 0usize;
     let mut matched_count = 0usize;
+
     for (t, m) in tokens.iter().zip(matched) {
         if !t.is_whitespace {
             total += 1;
@@ -282,6 +285,7 @@ fn count_non_ws(tokens: &[Token<'_>], matched: &[bool]) -> (usize, usize) {
             }
         }
     }
+
     (total, matched_count)
 }
 
@@ -377,6 +381,7 @@ where
     I: Iterator<Item = (usize, char)>,
 {
     let mut end = source_len;
+
     while let Some(&(i, c)) = chars.peek() {
         if predicate(c) {
             chars.next();
@@ -385,6 +390,7 @@ where
             break;
         }
     }
+
     end
 }
 
