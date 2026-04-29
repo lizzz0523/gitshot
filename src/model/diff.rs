@@ -207,8 +207,7 @@ fn inline_diff_ranges(old: &str, new: &str) -> (Vec<Range<usize>>, Vec<Range<usi
         return (Vec::new(), Vec::new());
     }
 
-    let (dp, stride) = lcs_table(&old_tokens, &new_tokens);
-    let (old_matched, new_matched) = lcs_match_mask(&old_tokens, &new_tokens, &dp, stride);
+    let (old_matched, new_matched) = lcs_match_mask(&old_tokens, &new_tokens);
 
     let (old_non_ws, old_matched_ws) = count_non_ws(&old_tokens, &old_matched);
     let (new_non_ws, new_matched_ws) = count_non_ws(&new_tokens, &new_matched);
@@ -229,38 +228,31 @@ fn inline_diff_ranges(old: &str, new: &str) -> (Vec<Range<usize>>, Vec<Range<usi
     (del_ranges, add_ranges)
 }
 
-// DP 表扁平化为一维 Vec，用 i*stride+j 索引，避免 Vec<Vec<_>> 两层堆分配
-fn lcs_table(a: &[Token<'_>], b: &[Token<'_>]) -> (Vec<usize>, usize) {
+// 返回 (a_matched, b_matched)：与 tokens 同长的布尔数组，true 表示该 token 进入了 LCS。
+// DP 表扁平化为一维 Vec，用 i*stride+j 索引，避免 Vec<Vec<_>> 两层堆分配。
+fn lcs_match_mask(a: &[Token<'_>], b: &[Token<'_>]) -> (Vec<bool>, Vec<bool>) {
     let m = a.len();
     let n = b.len();
     let stride = n + 1;
-    let mut dp = vec![0usize; (m + 1) * stride];
 
-    for i in 1..=m {
-        for j in 1..=n {
-            dp[i * stride + j] = if a[i - 1].text == b[j - 1].text {
-                dp[(i - 1) * stride + (j - 1)] + 1
+    // dp[i+1][j+1] = a[0..=i] 与 b[0..=j] 的 LCS 长度
+    let mut dp = vec![0usize; (m + 1) * stride];
+    for i in 0..m {
+        for j in 0..n {
+            dp[(i + 1) * stride + (j + 1)] = if a[i].text == b[j].text {
+                dp[i * stride + j] + 1
             } else {
-                dp[(i - 1) * stride + j].max(dp[i * stride + (j - 1)])
+                dp[i * stride + (j + 1)].max(dp[(i + 1) * stride + j])
             };
         }
     }
 
-    (dp, stride)
-}
+    let mut a_matched = vec![false; m];
+    let mut b_matched = vec![false; n];
 
-fn lcs_match_mask(
-    a: &[Token<'_>],
-    b: &[Token<'_>],
-    dp: &[usize],
-    stride: usize,
-) -> (Vec<bool>, Vec<bool>) {
-    let mut a_matched = vec![false; a.len()];
-    let mut b_matched = vec![false; b.len()];
-
-    let mut i = a.len();
-    let mut j = b.len();
-
+    // 回溯：相等且来自左上 +1 → 命中 LCS
+    let mut i = m;
+    let mut j = n;
     while i > 0 && j > 0 {
         if a[i - 1].text == b[j - 1].text
             && dp[i * stride + j] == dp[(i - 1) * stride + (j - 1)] + 1
