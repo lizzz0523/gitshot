@@ -72,10 +72,7 @@ impl Renderer {
     }
 
     fn font_index_for_char(&self, c: char) -> usize {
-        self.fonts
-            .iter()
-            .position(|f| has_glyph(f, c))
-            .unwrap_or(0)
+        self.fonts.iter().position(|f| has_glyph(f, c)).unwrap_or(0)
     }
 
     pub fn centered_baseline(&self, y_top: f32, line_height: f32) -> f32 {
@@ -90,12 +87,7 @@ impl Renderer {
             .map(|(fi, run)| {
                 let font = &self.fonts[*fi];
                 run.chars()
-                    .map(|c| {
-                        font.glyph(c)
-                            .scaled(self.scale)
-                            .h_metrics()
-                            .advance_width
-                    })
+                    .map(|c| font.glyph(c).scaled(self.scale).h_metrics().advance_width)
                     .sum::<f32>()
             })
             .sum()
@@ -150,9 +142,9 @@ impl Renderer {
                         }
                     });
                 }
-                cursor_x = glyph.pixel_bounding_box().map_or(cursor_x, |bb| {
-                    bb.max.x as f32
-                });
+                cursor_x = glyph
+                    .pixel_bounding_box()
+                    .map_or(cursor_x, |bb| bb.max.x as f32);
             }
         }
     }

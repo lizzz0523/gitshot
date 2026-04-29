@@ -60,8 +60,7 @@ impl<'a> DiffView<'a> {
             ((max_line_w + style.img_padding * 2.0).ceil() as u32).clamp(400, style.max_img_width);
 
         let row_count = self.count_rows();
-        let img_h =
-            (row_count as f32 * style.line_height + style.img_padding * 2.0).ceil() as u32;
+        let img_h = (row_count as f32 * style.line_height + style.img_padding * 2.0).ceil() as u32;
         (img_w, img_h)
     }
 
