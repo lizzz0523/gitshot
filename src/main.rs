@@ -11,7 +11,7 @@ mod renderer;
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
-    let config = Config::load()?;
+    let config = Config::load();
 
     match cli.command {
         Commands::Diff(args) => command::diff::run(&config, &args),

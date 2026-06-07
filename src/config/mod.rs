@@ -48,11 +48,11 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn load() -> Result<Self> {
+    pub fn load() -> Self {
         let file_cfg = load_config_file().unwrap_or_default();
-        Ok(Self {
+        Self {
             style: Style::from_config(&file_cfg),
-        })
+        }
     }
 }
 
